@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokémon Nuzlocke Tracker – Alle Generationen (Gen 1–9)</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <!-- FontAwesome für UI-Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            accent: {
+              DEFAULT: 'var(--accent-color, #E6005C)',
+              dark: 'var(--accent-dark, #B80049)',
+              soft: 'var(--accent-soft, rgba(230, 0, 92, 0.16))'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --accent-color: #E6005C;
+      --accent-dark: #B80049;
+      --accent-soft: rgba(230, 0, 92, 0.16);
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent-color); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-accent selection:text-white">
+
+  <!-- Toast Benachrichtigungs-Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Bestätigungs-Modal -->
+  <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex items-center gap-3 text-accent mb-3">
+        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+        <h3 id="confirm-title" class="text-lg font-bold text-white">Bestätigung erforderlich</h3>
+      </div>
+      <p id="confirm-message" class="text-slate-300 text-sm mb-6 leading-relaxed"></p>
+      <div class="flex justify-end gap-3">
+        <button id="confirm-cancel" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition">Abbrechen</button>
+        <button id="confirm-ok" class="px-4 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white text-sm font-semibold transition shadow-lg">Bestätigen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header / Top Bar -->
+  <header class="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <!-- Brand / Aktiver Run & Edition -->
+      <div class="flex items-center gap-3">
+        <div id="header-icon-box" class="w-11 h-11 rounded-2xl bg-accent flex items-center justify-center shadow-lg shrink-0 transition-colors">
+          <i id="header-icon" class="fa-solid fa-shield-halved text-white text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 id="header-title" class="text-lg sm:text-xl font-extrabold tracking-tight text-white">
+              Pokémon <span class="text-accent">Schild</span> Nuzlocke
+            </h1>
+            <span id="header-region-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-accent-soft text-accent border border-accent/30">
+              GEN 8 • GALAR
+            </span>
+          </div>
+          <p id="pokedex-status" class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            Verbinde mit PokeAPI (Gen 1–9)...
+          </p>
+        </div>
+      </div>
+
+      <!-- Schnell-Statistiken, Run-Wechsler & Level Cap -->
+      <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+        <!-- Aktiver Run & Editions-Button -->
+        <button onclick="openRunsModal()" class="bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-accent/60 rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs transition">
+          <i class="fa-solid fa-gamepad text-accent"></i>
+          <span id="header-run-name" class="font-bold text-white max-w-[130px] truncate">Mein Run</span>
+          <i class="fa-solid fa-chevron-down text-[10px] text-slate-400"></i>
+        </button>
+
+        <div class="bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-1.5 flex items-center gap-2">
+          <i class="fa-solid fa-crown text-amber-400 text-xs"></i>
+          <div class="text-xs">
+            <span class="text-slate-400">Cap:</span>
+            <strong id="header-level-cap" class="text-white font-bold ml-0.5">Lv. 20</strong>
+            <span id="header-next-leader" class="text-slate-400 hidden md:inline"> (Yarrow)</span>
+          </div>
+        </div>
+
+        <div class="hidden xl:flex items-center gap-2 bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-1.5 text-xs">
+          <span class="text-emerald-400 font-bold" id="stat-caught">0</span> <span class="text-slate-400">Gefangen</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-rose-400 font-bold" id="stat-dead">0</span> <span class="text-slate-400">K.O.</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-amber-400 font-bold" id="stat-badges">0/8</span> <span class="text-slate-400">Ziele</span>
+        </div>
+
+        <!-- Export / Import / Reset -->
+        <div class="flex items-center gap-1.5">
+          <button onclick="exportData()" title="Alle Runs als JSON exportieren" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition text-xs font-medium flex items-center gap-1.5">
+            <i class="fa-solid fa-download"></i>
+            <span class="hidden sm:inline">Export</span>
+          </button>
+          <label title="JSON Backup importieren" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition text-xs font-medium flex items-center gap-1.5 cursor-pointer">
+            <i class="fa-solid fa-upload"></i>
+            <span class="hidden sm:inline">Import</span>
+            <input type="file" id="import-file" accept=".json" class="hidden" onchange="importData(event)" />
+          </label>
+          <button onclick="confirmResetRun()" title="Aktuellen Run zurücksetzen" class="p-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/70 text-slate-400 hover:text-rose-400 border border-slate-700 hover:border-rose-800 transition text-xs font-medium">
+            <i class="fa-solid fa-rotate-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 flex gap-1 sm:gap-2 overflow-x-auto no-scrollbar border-t border-slate-800/70 pt-2 pb-2">
+      <button onclick="switchTab('team')" id="tab-btn-team" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition whitespace-nowrap bg-accent text-white shadow-md">
+        <i class="fa-solid fa-users"></i>
+        <span>Aktives Team</span>
+        <span id="badge-team-count" class="px-1.5 py-0.5 text-[11px] rounded-full bg-black/25">0/6</span>
+      </button>
+      <button onclick="switchTab('routes')" id="tab-btn-routes" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition whitespace-nowrap text-slate-300 hover:bg-slate-800">
+        <i class="fa-solid fa-map-location-dot"></i>
+        <span>Routen & Begegnungen</span>
+        <span id="badge-routes-count" class="px-1.5 py-0.5 text-[11px] rounded-full bg-slate-800 text-slate-300">0</span>
+      </button>
+      <button onclick="switchTab('box')" id="tab-btn-box" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition whitespace-nowrap text-slate-300 hover:bg-slate-800">
+        <i class="fa-solid fa-box-archive"></i>
+        <span>Box & Friedhof</span>
+        <span id="badge-box-count" class="px-1.5 py-0.5 text-[11px] rounded-full bg-slate-800 text-slate-300">0</span>
+      </button>
+      <button onclick="switchTab('gyms')" id="tab-btn-gyms" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition whitespace-nowrap text-slate-300 hover:bg-slate-800">
+        <i class="fa-solid fa-medal"></i>
+        <span id="tab-gyms-label">Arena-Orden & Level-Caps</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- Hauptinhalt -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- TAB 1: AKTIVES TEAM & TYPEN-ANALYSE -->
+    <section id="tab-team" class="space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+        <div>
+          <h2 id="team-region-heading" class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-shield-cat text-accent"></i> Dein Galar-Team
+          </h2>
+          <p class="text-sm text-slate-400 mt-0.5">
+            Maximal 6 Pokémon gleichzeitig. Entwickle sie direkt über die PokeAPI oder verwalte Level & Status.
+          </p>
+        </div>
+        <button onclick="openEncounterModal()" class="px-4 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white font-semibold text-sm flex items-center justify-center gap-2 transition shadow-lg shrink-0">
+          <i class="fa-solid fa-plus"></i> Neue Begegnung erfassen
+        </button>
+      </div>
+
+      <div id="team-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+      <!-- Team Typen-Schwächen & Resistenzen Übersicht -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-chart-pie text-accent"></i> Team-Typen-Analyse (Defensive Abdeckung)
+            </h3>
+            <p class="text-xs text-slate-400">
+              Zeigt, wie viele deiner aktiven Team-Mitglieder gegen den jeweiligen Angriffstyp schwach (2x/4x) oder resistent/immun (0.5x/0.25x/0x) sind.
+            </p>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <span class="flex items-center gap-1 text-rose-400"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500/30 border border-rose-500"></span> Anfällig</span>
+            <span class="flex items-center gap-1 text-emerald-400"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500/30 border border-emerald-500"></span> Resistent / Immun</span>
+          </div>
+        </div>
+        <div id="type-coverage-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-9 gap-2.5"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: ROUTEN & BEGEGNUNGEN -->
+    <section id="tab-routes" class="hidden space-y-5">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col lg:flex-row gap-4 justify-between">
+        <div class="flex flex-col sm:flex-row gap-3 flex-1">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="route-search" oninput="renderRoutes()" placeholder="Route, Ort, Pokémon oder Spitzname suchen..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white placeholder-slate-500" />
+          </div>
+          <select id="route-filter" onchange="renderRoutes()" class="px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white">
+            <option value="all">Alle Orte anzeigen</option>
+            <option value="open">Noch offen (Unbesucht)</option>
+            <option value="caught">Alle Gefangenen (Team + Box)</option>
+            <option value="team">Nur im Team</option>
+            <option value="box">Nur auf der Box</option>
+            <option value="dead">Besiegt (Friedhof)</option>
+            <option value="missed">Verpasst / Geflohen</option>
+          </select>
+        </div>
+
+        <div class="flex gap-2">
+          <input type="text" id="custom-route-input" placeholder="Eigener Ort / Gebiet..." class="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white placeholder-slate-500 w-full sm:w-56" />
+          <button onclick="addCustomRoute()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-accent text-white text-sm font-semibold transition whitespace-nowrap flex items-center gap-1.5 border border-slate-700 hover:border-accent">
+            <i class="fa-solid fa-plus"></i> Ort
+          </button>
+        </div>
+      </div>
+
+      <div id="routes-list" class="space-y-3"></div>
+    </section>
+
+    <!-- TAB 3: BOX & FRIEDHOF -->
+    <section id="tab-box" class="hidden space-y-8">
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-desktop text-sky-400"></i> PC-Lagerungssystem (Box)
+            <span id="box-section-count" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">0</span>
+          </h2>
+        </div>
+        <div id="box-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+
+      <div class="pt-6 border-t border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-200 flex items-center gap-2">
+              <i class="fa-solid fa-monument text-rose-500"></i> Friedhof der Gefallenen
+              <span id="graveyard-section-count" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">0</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">In ehrenvoller Erinnerung an alle Pokémon, die ihr Leben auf deiner Reise gaben.</p>
+          </div>
+        </div>
+        <div id="graveyard-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+    </section>
+
+    <!-- TAB 4: ARENA-ORDEN / PRÜFUNGEN & LEVEL-CAPS -->
+    <section id="tab-gyms" class="hidden space-y-6">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-accent-soft border border-slate-800 rounded-2xl p-5 sm:p-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span id="gym-edition-badge" class="inline-block px-2.5 py-1 rounded-lg bg-accent-soft text-accent text-xs font-bold uppercase tracking-wider mb-2">
+              Pokémon Schild • Galar
+            </span>
+            <h2 id="gym-heading" class="text-2xl font-extrabold text-white">Galar Arena-Challenge & Champ-Cup</h2>
+            <p id="gym-subtitle" class="text-sm text-slate-300 mt-1 max-w-2xl">
+              Hake besiegte Arena-Leiter ab, um dein aktuelles Nuzlocke Level-Cap automatisch zu aktualisieren.
+            </p>
+          </div>
+          <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-center shrink-0 min-w-[170px]">
+            <div class="text-xs text-slate-400 uppercase font-semibold">Nächstes Level-Cap</div>
+            <div id="gym-tab-cap" class="text-3xl font-black text-accent mt-1">Lv. 20</div>
+            <div id="gym-tab-leader" class="text-xs text-slate-300 mt-0.5 font-medium">Yarrow (Pflanze)</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gyms-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: RUNS & EDITIONEN VERWALTEN (GEN 1 - GEN 9) -->
+  <div id="runs-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl my-auto">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+          <h3 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-accent"></i> Spielstände & Editionen (Gen 1–9)
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">Wechsle zwischen deinen Nuzlocke-Runs oder starte einen neuen Run in einer beliebigen Edition.</p>
+        </div>
+        <button onclick="closeRunsModal()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Bestehende Runs Liste -->
+      <div class="mt-4">
+        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Deine gespeicherten Runs</div>
+        <div id="runs-list" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+      </div>
+
+      <!-- Neuen Run erstellen -->
+      <form onsubmit="createNewRun(event)" class="mt-5 pt-4 border-t border-slate-800 space-y-3">
+        <div class="text-xs font-bold uppercase tracking-wider text-accent">Neuen Nuzlocke-Run anlegen</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Edition (Generation 1 bis 9)</label>
+            <select id="new-run-edition" class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white">
+              <!-- Wird dynamisch nach Generationen gruppiert befüllt -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Name des Runs</label>
+            <input type="text" id="new-run-name" placeholder="z.B. Platin Hardcore Run" class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white placeholder-slate-500" />
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" class="px-4 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white text-sm font-semibold transition flex items-center gap-2 shadow-lg">
+            <i class="fa-solid fa-plus"></i> Run starten & wechseln
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: BEGEGNUNG ERFASSEN / BEARBEITEN -->
+  <div id="encounter-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl my-auto relative">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+          <h3 id="modal-title" class="text-lg sm:text-xl font-bold text-white">Begegnung erfassen</h3>
+          <p id="modal-subtitle" class="text-xs text-slate-400 mt-0.5">Wähle Ort und Pokémon aus (Live-Daten über PokeAPI)</p>
+        </div>
+        <button onclick="closeEncounterModal()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="encounter-form" onsubmit="saveEncounter(event)" class="space-y-4 mt-4">
+        <input type="hidden" id="edit-route-id" />
+
+        <div>
+          <label id="modal-route-label" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Ort / Route</label>
+          <select id="modal-route-select" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white"></select>
+        </div>
+
+        <div class="relative">
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            Pokémon suchen <span class="text-slate-400 font-normal normal-case">(Deutsch/Englisch, inkl. Regionalformen wie "Galar-Ponita", "Hisui-Fukano", "Paldea-Felino")</span>
+          </label>
+          <div class="relative">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="pokemon-search-input" autocomplete="off" oninput="handlePokemonSearch(this.value)" onfocus="handlePokemonSearch(this.value)" placeholder="Name eingeben..." class="w-full pl-10 pr-10 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white placeholder-slate-500" />
+            <div id="pokemon-search-spinner" class="hidden absolute right-3.5 top-1/2 -translate-y-1/2">
+              <i class="fa-solid fa-circle-notch fa-spin text-accent"></i>
+            </div>
+          </div>
+          <div id="pokemon-autocomplete-list" class="hidden absolute z-30 left-0 right-0 mt-1.5 max-h-60 overflow-y-auto bg-slate-950 border border-slate-700 rounded-xl shadow-2xl divide-y divide-slate-800/80"></div>
+        </div>
+
+        <div id="dupes-warning" class="hidden p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-3">
+          <i class="fa-solid fa-clone text-amber-400 text-base mt-0.5 shrink-0"></i>
+          <div>
+            <strong class="font-bold text-amber-300 block">Dupes Clause Hinweis (Duplikat-Klausel)!</strong>
+            <span id="dupes-warning-text"></span>
+          </div>
+        </div>
+
+        <div id="selected-pokemon-preview" class="hidden bg-slate-950/90 border border-slate-800 rounded-2xl p-4">
+          <div class="flex flex-col sm:flex-row items-center gap-4">
+            <div class="w-24 h-24 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 relative">
+              <img id="preview-sprite" src="" alt="Pokémon" class="w-20 h-20 object-contain drop-shadow-md" />
+              <span id="preview-dex-num" class="absolute top-1.5 left-2 text-[10px] font-bold text-slate-500">#000</span>
+            </div>
+            <div class="flex-1 text-center sm:text-left w-full">
+              <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <h4 id="preview-name-de" class="text-lg font-extrabold text-white">Pokémon</h4>
+                <span id="preview-name-en" class="text-xs text-slate-400"></span>
+                <div id="preview-types" class="flex gap-1.5"></div>
+              </div>
+              <div id="preview-stats" class="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3 text-center"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Spitzname</label>
+            <input type="text" id="modal-nickname" placeholder="z.B. Flummi" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white placeholder-slate-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Aktuelles Level</label>
+            <input type="number" id="modal-level" min="1" max="100" value="5" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Status</label>
+            <select id="modal-status" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white">
+              <option value="team">Im Team (Aktiv)</option>
+              <option value="box">Auf der Box</option>
+              <option value="dead">Besiegt (Friedhof)</option>
+              <option value="missed">Verpasst / Geflohen</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">Notizen (Wesen, Fähigkeit, Fangball oder Todesursache)</label>
+          <input type="text" id="modal-notes" placeholder="z.B. Hartes Wesen, gefangen im Superball..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white placeholder-slate-500" />
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+          <button type="button" id="modal-delete-btn" onclick="deleteCurrentEncounter()" class="hidden px-4 py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/60 text-sm font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-trash"></i> Eintrag löschen
+          </button>
+          <div class="flex items-center gap-2 ml-auto">
+            <button type="button" onclick="closeEncounterModal()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold transition">Abbrechen</button>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-dark text-white text-sm font-semibold transition shadow-lg flex items-center gap-2">
+              <i class="fa-solid fa-check"></i> Speichern
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ENTWICKLUNG AUSWÄHLEN -->
+  <div id="evolve-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-dna text-accent"></i> Pokémon entwickeln
+        </h3>
+        <button onclick="closeEvolveModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-400 mt-3 mb-4">Wähle die nächste Entwicklungsstufe aus der PokeAPI-Entwicklungsreihe:</p>
+      <div id="evolve-options" class="space-y-2.5"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: TEAM-SLOT AUSWAHL AUS GEFANGENEN POKÉMON -->
+  <div id="team-picker-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl flex flex-col max-h-[85vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 shrink-0">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-box-open text-accent"></i> Pokémon ins Team aufnehmen
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">Wähle ein gefangenes Pokémon von deiner PC-Box für dein aktives Team aus:</p>
+        </div>
+        <button onclick="closeTeamPickerModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="relative mt-3 shrink-0">
+        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input type="text" id="team-picker-search" oninput="renderTeamPickerList()" placeholder="Gefangenes Pokémon oder Spitzname filtern..." class="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 focus:border-accent focus:outline-none text-sm text-white placeholder-slate-500" />
+      </div>
+
+      <div id="team-picker-list" class="mt-3 space-y-2 overflow-y-auto pr-1 flex-1 min-h-[140px]"></div>
+
+      <div class="pt-3 mt-3 border-t border-slate-800 flex items-center justify-between gap-2 shrink-0">
+        <span class="text-xs text-slate-400">Neuen Fang gemacht?</span>
+        <button type="button" onclick="closeTeamPickerModal(); openEncounterModal();" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-accent text-slate-200 hover:text-white text-xs font-semibold transition flex items-center gap-1.5">
+          <i class="fa-solid fa-plus"></i> Neue Begegnung erfassen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. KOMPAKTE REGIONEN- & EDITIONEN-DATENBANK (GENERATION 1 BIS 9)
+    // =========================================================================
+
+    const LEGACY_SHIELD_KEY = 'pokemon_shield_nuzlocke_v1';
+    const MULTI_STORAGE_KEY = 'pokemon_nuzlocke_multigen_v1';
+    const GERMAN_NAMES_CACHE_KEY = 'pokeapi_german_names_v2';
+
+    // Hilfsfunktion zur kompakten Erstellung von Routen-Objekten
+    const r = (id, name, category = 'Route') => ({ id, name, category });
+    // Hilfsfunktion zur kompakten Erstellung von Orden/Prüfungen/Herrschern
+    const g = (id, order, name, city, badge, type, cap, ace, icon = 'fa-medal', exclusive = false) =>
+      ({ id, order, name, city, badge, type, cap, ace, icon, exclusive });
+
+    // Basis-Routen der 9 Regionen (werden pro Edition bei Bedarf leicht angepasst)
+    const REGION_ROUTES = {
+      kanto: [
+        r('alabastia', 'Alabastia (Starter)', 'Stadt'), r('r1', 'Route 1'), r('vertania', 'Vertania City (Angeln)', 'Stadt'),
+        r('r22', 'Route 22'), r('r2', 'Route 2'), r('vertania-wald', 'Vertania-Wald', 'Wald'),
+        r('r3', 'Route 3'), r('mondberg', 'Mondberg', 'Höhle'), r('r4', 'Route 4'),
+        r('azuria', 'Azuria City (Angeln)', 'Stadt'), r('r24', 'Route 24 (Nugget-Brücke)'), r('r25', 'Route 25'),
+        r('r5', 'Route 5'), r('r6', 'Route 6'), r('orania', 'Orania City (Angeln)', 'Stadt'),
+        r('r11', 'Route 11'), r('digdas-hoehle', 'Digdas Höhle', 'Höhle'), r('r9', 'Route 9'),
+        r('r10', 'Route 10'), r('felstunnel', 'Felstunnel', 'Höhle'), r('lavandia', 'Lavandia / Pokémon-Turm', 'Spezial'),
+        r('r8', 'Route 8'), r('r7', 'Route 7'), r('prismania', 'Prismania City (Geschenk/Spielhalle)', 'Stadt'),
+        r('r12', 'Route 12'), r('r13', 'Route 13'), r('r14', 'Route 14'), r('r15', 'Route 15'),
+        r('r16', 'Route 16'), r('r17', 'Route 17 (Radweg)'), r('r18', 'Route 18'),
+        r('fuchsania', 'Fuchsania City (Angeln)', 'Stadt'), r('safari-zone', 'Safari-Zone', 'Spezial'),
+        r('kraftwerk', 'Kraftwerk', 'Spezial'), r('r19', 'Route 19'), r('r20', 'Route 20'),
+        r('seeschauminseln', 'Seeschauminseln', 'Höhle'), r('zinnoberinsel', 'Zinnoberinsel (Fossil/Villa)', 'Stadt'),
+        r('r21', 'Route 21'), r('r23', 'Route 23'), r('siegesstrasse-k', 'Siegesstraße', 'Höhle')
+      ],
+      johto: [
+        r('neuborkia', 'Neuborkia (Starter)', 'Stadt'), r('r29', 'Route 29'), r('r46', 'Route 46'),
+        r('rosalia', 'Rosalia City', 'Stadt'), r('r30', 'Route 30'), r('r31', 'Route 31'),
+        r('dunkelhoehle', 'Dunkelhöhle', 'Höhle'), r('viola', 'Viola City', 'Stadt'), r('knoefensaturm', 'Knofensa-Turm', 'Spezial'),
+        r('r32', 'Route 32'), r('alph-ruinen', 'Alph-Ruinen', 'Spezial'), r('einheitstunnel', 'Einheitstunnel', 'Höhle'),
+        r('r33', 'Route 33'), r('azalea', 'Azalea City', 'Stadt'), r('flegmon-brunnen', 'Flegmon-Brunnen', 'Höhle'),
+        r('steinchenwald', 'Steineichenwald', 'Wald'), r('r34', 'Route 34'), r('dukatia', 'Dukatia City (Evoli/Spielhalle)', 'Stadt'),
+        r('r35', 'Route 35'), r('nationalpark', 'Nationalpark', 'Spezial'), r('r36', 'Route 36'), r('r37', 'Route 37'),
+        r('teak', 'Teak City', 'Stadt'), r('turmruine', 'Turmruine', 'Spezial'), r('r38', 'Route 38'), r('r39', 'Route 39'),
+        r('oliviana', 'Oliviana City', 'Stadt'), r('r40', 'Route 40'), r('r41', 'Route 41'), r('anemonia', 'Anemonia City', 'Stadt'),
+        r('r42', 'Route 42'), r('kesselberg', 'Kesselberg', 'Höhle'), r('r43', 'Route 43'), r('see-des-zorns', 'See des Zorns', 'Spezial'),
+        r('r44', 'Route 44'), r('eispfad', 'Eispfad', 'Höhle'), r('ebenholz', 'Ebenholz City / Drachenhöhle', 'Stadt'),
+        r('r45', 'Route 45'), r('r27', 'Route 27'), r('tohjo-faelle', 'Tohjo-Fälle', 'Höhle'), r('r26', 'Route 26'),
+        r('siegesstrasse-j', 'Siegesstraße (Johto)', 'Höhle'), r('kanto-postgame', 'Kanto-Region (Postgame)', 'Spezial'), r('silberberg', 'Silberberg', 'Höhle')
+      ],
+      hoenn: [
+        r('wurzelheim', 'Wurzelheim (Starter)', 'Stadt'), r('r101', 'Route 101'), r('r103', 'Route 103'),
+        r('r102', 'Route 102'), r('bluetenburg', 'Blütenburg City', 'Stadt'), r('r104', 'Route 104'),
+        r('bluetenburgwald', 'Blütenburgwald', 'Wald'), r('metarost', 'Metarost City', 'Stadt'), r('r116', 'Route 116'),
+        r('metaflur-tunnel', 'Metaflurtunnel', 'Höhle'), r('faustauhaven', 'Faustauhaven', 'Stadt'), r('granithoehle', 'Granithöhle', 'Höhle'),
+        r('r106', 'Route 106'), r('r107', 'Route 107'), r('r108', 'Route 108'), r('r109', 'Route 109'),
+        r('graphitport', 'Graphitport City', 'Stadt'), r('r110', 'Route 110'), r('neu-malvenfroh', 'Neu Malvenfroh', 'Spezial'),
+        r('r117', 'Route 117'), r('r111', 'Route 111 (Wüste/Pass)'), r('r112', 'Route 112'), r('feuriger-pfad', 'Feuriger Pfad', 'Höhle'),
+        r('r113', 'Route 113'), r('r114', 'Route 114'), r('meteorfaelle', 'Meteorfaelle', 'Höhle'), r('steingipfel', 'Steilpass', 'Höhle'),
+        r('r115', 'Route 115'), r('r118', 'Route 118'), r('r119', 'Route 119 (Klimainstitut)', 'Route'),
+        r('r120', 'Route 120'), r('r121', 'Route 121'), r('safari-hoenn', 'Safari-Zone (Hoenn)', 'Spezial'),
+        r('pyroberg', 'Pyroberg', 'Spezial'), r('r122', 'Route 122'), r('r123', 'Route 123'), r('seegrasulb', 'Seegrasulb City', 'Stadt'),
+        r('r124', 'Route 124'), r('r125', 'Route 125 / Küstenhöhle'), r('r126', 'Route 126'), r('r127', 'Route 127'),
+        r('r128', 'Route 128 / Tiefseehöhle'), r('urzeithoehle', 'Urzeithöhle', 'Höhle'), r('r129', 'Route 129'),
+        r('r130', 'Route 130'), r('r131', 'Route 131'), r('flossbrunn', 'Floßbrunn', 'Stadt'), r('r132', 'Route 132'),
+        r('r133', 'Route 133'), r('r134', 'Route 134'), r('siegesstrasse-h', 'Siegesstraße (Hoenn)', 'Höhle')
+      ],
+      sinnoh: [
+        r('zweiblattdorf', 'Zweiblattdorf (Starter)', 'Stadt'), r('see-der-wahrheit', 'See der Wahrheit', 'Spezial'),
+        r('r201', 'Route 201'), r('r202', 'Route 202'), r('r203', 'Route 203'), r('erzelingen-tor', 'Erzelingen-Tor', 'Höhle'),
+        r('erzelingen', 'Erzelingen (Fossil)', 'Stadt'), r('erzelingen-mine', 'Erzelingen-Mine', 'Höhle'),
+        r('r204', 'Route 204'), r('verwuesteter-pfad', 'Verwüsteter Pfad', 'Höhle'), r('auen-von-flori', 'Auen von Flori', 'Spezial'),
+        r('windkraftwerk', 'Windkraftwerk', 'Spezial'), r('r205', 'Route 205'), r('ewigwald', 'Ewigwald', 'Wald'),
+        r('alte-villa', 'Alte Villa', 'Spezial'), r('ewigenau', 'Ewigenau', 'Stadt'), r('r211', 'Route 211'),
+        r('kraterberg', 'Kraterberg', 'Höhle'), r('r206', 'Route 206 (Radweg)'), r('bizarre-hoehle', 'Bizarre Höhle', 'Höhle'),
+        r('r207', 'Route 207'), r('r208', 'Route 208'), r('herzhofen', 'Herzhofen (Evoli/Ei)', 'Stadt'),
+        r('r209', 'Route 209'), r('turm-der-ruhenden', 'Turm der Ruhenden', 'Spezial'), r('r210', 'Route 210'),
+        r('r215', 'Route 215'), r('schleiede', 'Schleiede (Porygon)', 'Stadt'), r('r214', 'Route 214'),
+        r('kuehnheitsufer', 'Kühnheitsufer / See der Kühnheit', 'Spezial'), r('r213', 'Route 213'),
+        r('weideburg', 'Weideburg / Großmoor', 'Spezial'), r('r212', 'Route 212'), r('trophaengarten', 'Trophäengarten', 'Spezial'),
+        r('r218', 'Route 218'), r('fleetburg', 'Fleetburg', 'Stadt'), r('eiseninsel', 'Eiseninsel', 'Höhle'),
+        r('r216', 'Route 216'), r('r217', 'Route 217'), r('staerkeufer', 'Stärkeufer / See der Stärke', 'Spezial'),
+        r('r222', 'Route 222'), r('sonnewik', 'Sonnewik', 'Stadt'), r('r223', 'Route 223'), r('siegesstrasse-s', 'Siegesstraße (Sinnoh)', 'Höhle')
+      ],
+      unova1: [
+        r('aventia', 'Aventia (Starter)', 'Stadt'), r('r1-u', 'Route 1'), r('r2-u', 'Route 2'), r('traumbrache', 'Traumbrache', 'Spezial'),
+        r('r3-u', 'Route 3'), r('grundwassersenke', 'Grundwassersenke', 'Höhle'), r('ewigenwald-u', 'Ewigenwald', 'Wald'),
+        r('stratos', 'Stratos City', 'Stadt'), r('r4-u', 'Route 4'), r('wuestenresort', 'Wüstenresort', 'Spezial'),
+        r('alter-palast', 'Alter Palast', 'Spezial'), r('r5-u', 'Route 5'), r('r16-u', 'Route 16'), r('hain-der-taeuschung', 'Hain der Täuschung', 'Wald'),
+        r('marea', 'Marea City', 'Stadt'), r('tiefkuehlcontainer', 'Tiefkühlcontainer', 'Spezial'), r('r6-u', 'Route 6'),
+        r('elektrolithhoehle', 'Elektrolithhöhle', 'Höhle'), r('r7-u', 'Route 7'), r('turm-des-himmels', 'Turm des Himmels', 'Spezial'),
+        r('wendelberg', 'Wendelberg', 'Höhle'), r('nevaio', 'Nevaio City', 'Stadt'), r('drachenstiege', 'Drachenstiege', 'Spezial'),
+        r('r8-u', 'Route 8'), r('moor-von-nevaio', 'Moor von Nevaio', 'Spezial'), r('r9-u', 'Route 9'),
+        r('r10-u', 'Route 10'), r('siegesstrasse-u1', 'Siegesstraße (Einall)', 'Höhle'), r('schloss-von-n', 'Schloss von N', 'Spezial')
+      ],
+      unova2: [
+        r('eventura', 'Eventura City (Starter)', 'Stadt'), r('r19-u2', 'Route 19'), r('r20-u2', 'Route 20'),
+        r('dausing-hof', 'Dausing-Hof', 'Spezial'), r('vapydro-werke', 'Vapydro-Werke', 'Spezial'),
+        r('stratos-u2', 'Stratos City / Stratos-Kanalisation', 'Stadt'), r('r4-u2', 'Route 4'), r('wuestenresort-u2', 'Wüstenresort / Alter Palast', 'Spezial'),
+        r('r5-u2', 'Route 5'), r('r16-u2', 'Route 16'), r('marea-u2', 'Marea City / Zuflucht', 'Stadt'),
+        r('alter-fluchtweg', 'Alter Fluchtweg', 'Höhle'), r('r6-u2', 'Route 6'), r('elektrolithhoehle-u2', 'Elektrolithhöhle', 'Höhle'),
+        r('r7-u2', 'Route 7 / Turm des Himmels', 'Route'), r('bizzaro-haus', 'Bizarro-Haus', 'Spezial'),
+        r('janusberg', 'Janusberg', 'Höhle'), r('undella', 'Ondula', 'Stadt'), r('r13-u2', 'Route 13'),
+        r('r12-u2', 'Route 12'), r('r11-u2', 'Route 11'), r('r9-u2', 'Route 9'), r('r22-u2', 'Route 22'),
+        r('riesengrotte', 'Riesengrotte', 'Höhle'), r('r21-u2', 'Route 21'), r('strandgrotten', 'Strandgrotten', 'Höhle'),
+        r('r23-u2', 'Route 23'), r('siegesstrasse-u2', 'Siegesstraße (S2/W2)', 'Höhle')
+      ],
+      kalos: [
+        r('escrocia', 'Escissia (Starter)', 'Stadt'), r('r2-k', 'Route 2'), r('nouvaria-wald', 'Nouvaria-Wald', 'Wald'),
+        r('r3-k', 'Route 3'), r('r22-k', 'Route 22'), r('r4-k', 'Route 4'), r('illumina', 'Illumina City (Kanto-Starter)', 'Stadt'),
+        r('r5-k', 'Route 5'), r('r6-k', 'Route 6'), r('magnum-opus', 'Magnum-Opus-Palast', 'Spezial'), r('r7-k', 'Route 7'),
+        r('geoloch', 'Geoloch', 'Höhle'), r('r8-k', 'Route 8'), r('petrophia', 'Petrophia (Fossil)', 'Stadt'), r('r9-k', 'Route 9'),
+        r('leuchthoehle', 'Leuchthöhle', 'Höhle'), r('relievera', 'Relievera City', 'Stadt'), r('r10-k', 'Route 10'),
+        r('r11-k', 'Route 11'), r('spiegelhoehle', 'Spiegelhöhle', 'Höhle'), r('yantara', 'Yantara City (Lucario)', 'Stadt'),
+        r('r12-k', 'Route 12'), r('azurbucht', 'Azurbucht', 'Spezial'), r('r13-k', 'Route 13'), r('r14-k', 'Route 14'),
+        r('romantia-wald', 'Romantia-Wald', 'Wald'), r('r15-k', 'Route 15'), r('hotel-ruine', 'Hotelruine', 'Spezial'),
+        r('r16-k', 'Route 16'), r('frosthoehle', 'Frosthöhle', 'Höhle'), r('r17-k', 'Route 17'),
+        r('r18-k', 'Route 18'), r('omega-hoehle', 'Omega-Höhle', 'Höhle'), r('r19-k', 'Route 19'),
+        r('r20-k', 'Route 20 (Irrwald)', 'Wald'), r('pokemon-dorf', 'Pokémon-Dorf', 'Spezial'), r('r21-k', 'Route 21'),
+        r('siegesstrasse-kalos', 'Siegesstraße (Kalos)', 'Höhle')
+      ],
+      alola: [
+        r('lili-i', 'Lili’i (Starter)', 'Stadt'), r('r1-alola', 'Route 1 (Mele-Mele)'), r('hauholi', 'Hauholi City', 'Stadt'),
+        r('r2-alola', 'Route 2'), r('vegetationshoehle', 'Vegetationshöhle', 'Höhle'), r('r3-alola', 'Route 3'),
+        r('mele-mele-blumenmeer', 'Mele-Mele-Blumenmeer', 'Spezial'), r('tenkarat-huegel', 'Tenkarat-Hügel', 'Höhle'),
+        r('r4-alola', 'Route 4 (Akala)'), r('ohana-farm', 'Ohana-Farm', 'Spezial'), r('r5-alola', 'Route 5'),
+        r('plaetscherhuegel', 'Plätscherhügel', 'Spezial'), r('r6-alola', 'Route 6'), r('r7-alola', 'Route 7'),
+        r('wela-vulkanpark', 'Wela-Vulkanpark', 'Höhle'), r('r8-alola', 'Route 8'), r('schattendschungel', 'Schattendschungel', 'Wald'),
+        r('digda-tunnel', 'Digda-Tunnel', 'Höhle'), r('r9-alola', 'Route 9'), r('huegel-des-gedenkens', 'Hügel des Gedenkens', 'Spezial'),
+        r('malihe-ziergarten', 'Malihe-Ziergarten (Ula-Ula)', 'Spezial'), r('r10-alola', 'Route 10'), r('hokulani', 'Hokulani-Berg', 'Spezial'),
+        r('r11-alola', 'Route 11'), r('r12-alola', 'Route 12'), r('glurak-strand', 'Glurak-Strand / Roulett-Wüste', 'Spezial'),
+        r('r13-alola', 'Route 13'), r('r14-alola', 'Route 14'), r('verlassener-laden', 'Verlassener Schnäppchenladen', 'Spezial'),
+        r('r15-alola', 'Route 15 / 16'), r('ula-ula-blumenmeer', 'Ula-Ula-Blumenmeer', 'Spezial'), r('r17-alola', 'Route 17'),
+        r('wildes-poni', 'Wildes Poni (Poni)', 'Spezial'), r('alter-pfad-von-poni', 'Alter Pfad von Poni', 'Route'),
+        r('canyon-von-poni', 'Canyon von Poni', 'Höhle'), r('mount-lanakila', 'Mount Lanakila', 'Höhle')
+      ],
+      galar: [
+        r('postwick', 'Postwick (Starter-Pokémon)', 'Stadt'), r('route-1', 'Route 1'), r('slumbering-weald', 'Schlummerwald', 'Spezial'),
+        r('route-2', 'Route 2'), r('wa-rolling-fields', 'Naturzone – Wonnewiesen', 'Naturzone'),
+        r('wa-dappled-grove', 'Naturzone – Wipfelscheinwald', 'Naturzone'), r('wa-watchtower-ruins', 'Naturzone – Wachturmruine', 'Naturzone'),
+        r('wa-east-lake-axewell', 'Naturzone – Ostufer des Milza-Sees', 'Naturzone'), r('wa-west-lake-axewell', 'Naturzone – Westufer des Milza-Sees', 'Naturzone'),
+        r('wa-axews-eye', 'Naturzone – Milza-See (Auge)', 'Naturzone'), r('wa-south-lake-miloch', 'Naturzone – Südufer des Milotic-Sees', 'Naturzone'),
+        r('wa-north-lake-miloch', 'Naturzone – Nordufer des Milotic-Sees', 'Naturzone'), r('wa-giants-seat', 'Naturzone – Sitz des Giganten', 'Naturzone'),
+        r('motostoke', 'Engine City (Angeln / Geschenk)', 'Stadt'), r('route-3', 'Route 3'), r('galar-mine', 'Galar-Mine', 'Höhle'),
+        r('route-4', 'Route 4'), r('turffield', 'Turffield', 'Stadt'), r('route-5', 'Route 5'), r('hulbury', 'Keelton (Angeln)', 'Stadt'),
+        r('galar-mine-2', 'Galar-Mine Nr. 2', 'Höhle'), r('motostoke-outskirts', 'Engine-Ortsrand', 'Route'),
+        r('wa-motostoke-riverbank', 'Naturzone – Engine-Flussufer', 'Naturzone'), r('wa-bridge-field', 'Naturzone – Brückental', 'Naturzone'),
+        r('wa-stony-wilderness', 'Naturzone – Megalithen-Ebene', 'Naturzone'), r('wa-dusty-bowl', 'Naturzone – Sandsturmkessel', 'Naturzone'),
+        r('wa-giants-mirror', 'Naturzone – Spiegel des Giganten', 'Naturzone'), r('wa-hammerlocke-hills', 'Naturzone – Claw-Plateau', 'Naturzone'),
+        r('wa-giants-cap', 'Naturzone – Hut des Giganten', 'Naturzone'), r('wa-lake-of-outrage', 'Naturzone – Wutanfall-See', 'Naturzone'),
+        r('route-6', 'Route 6'), r('stow-on-side', 'Passbeck', 'Stadt'), r('glimwood-tangle', 'Glimwood-Wirrwald', 'Wald'),
+        r('route-7', 'Route 7'), r('route-8', 'Route 8 (Dampfpfad)'), r('route-9', 'Route 9 (Circhester-Bucht)'),
+        r('spikemuth', 'Spikeford', 'Stadt'), r('route-10', 'Route 10'), r('wyndon', 'Score City', 'Stadt'),
+        r('dlc-isle-of-armor', 'DLC: Rüstungsinsel (Optional)', 'DLC'), r('dlc-crown-tundra', 'DLC: Kronen-Schneelande (Optional)', 'DLC')
+      ],
+      hisui: [
+        r('jubeldorf', 'Jubeldorf (Starter)', 'Stadt'), r('obsidian-grasland', 'Obsidian-Grasland – Hufeisenwiesen', 'Gebiet'),
+        r('obsidian-wald', 'Obsidian-Grasland – Gezeiteninsel / Wald', 'Gebiet'), r('obsidian-hoehe', 'Obsidian-Grasland – Grandtree-Arena', 'Gebiet'),
+        r('rotes-sumpfland', 'Rotes Sumpfland – Purpurmoor', 'Gebiet'), r('sumpfland-ruinen', 'Rotes Sumpfland – Nebelruinen', 'Gebiet'),
+        r('sumpfland-arena', 'Rotes Sumpfland – Brava-Arena', 'Gebiet'), r('kobalt-kuestenland', 'Kobalt-Küstenland – Ginkgo-Strand', 'Gebiet'),
+        r('kuestenland-insel', 'Kobalt-Küstenland – Feuerspei-Insel', 'Gebiet'), r('kraterberg-hochland', 'Kraterberg-Hochland – Himmelsklippe', 'Gebiet'),
+        r('hochland-steinbruch', 'Kraterberg-Hochland – Uralter Steinbruch', 'Gebiet'), r('weisses-frostland', 'Weißes Frostland – Knochenöde', 'Gebiet'),
+        r('frostland-gletscher', 'Weißes Frostland – Lawinenhang', 'Gebiet'), r('raum-zeit-verzerrung', 'Raum-Zeit-Verzerrung (Spezial)', 'Spezial')
+      ],
+      paldea: [
+        r('cabo-poco', 'Cabo Poco (Starter)', 'Stadt'), r('poco-pfad', 'Poco-Pfad'), r('bucht-von-cabo-poco', 'Bucht von Cabo Poco', 'Gebiet'),
+        r('suedliche-zone-1', 'Südliche Zone 1', 'Gebiet'), r('suedliche-zone-2', 'Südliche Zone 2', 'Gebiet'),
+        r('suedliche-zone-3', 'Südliche Zone 3', 'Gebiet'), r('suedliche-zone-4', 'Südliche Zone 4', 'Gebiet'),
+        r('suedliche-zone-5', 'Südliche Zone 5', 'Gebiet'), r('suedliche-zone-6', 'Südliche Zone 6', 'Gebiet'),
+        r('westliche-zone-1', 'Westliche Zone 1', 'Gebiet'), r('westliche-zone-2', 'Westliche Zone 2', 'Gebiet'),
+        r('westliche-zone-3', 'Westliche Zone 3', 'Gebiet'), r('brutzelsee', 'Brutzelsee', 'Gebiet'),
+        r('oestliche-zone-1', 'Östliche Zone 1', 'Gebiet'), r('oestliche-zone-2', 'Östliche Zone 2', 'Gebiet'),
+        r('oestliche-zone-3', 'Östliche Zone 3', 'Gebiet'), r('schmierhain', 'Schmierhain', 'Wald'),
+        r('noerdliche-zone-1', 'Nördliche Zone 1', 'Gebiet'), r('noerdliche-zone-2', 'Nördliche Zone 2', 'Gebiet'),
+        r('noerdliche-zone-3', 'Nördliche Zone 3', 'Gebiet'), r('montanata', 'Montanata (Berg)', 'Gebiet'),
+        r('casseroya-see', 'Casseroya-See', 'Gebiet'), r('bambuswald', 'Nordöstlicher Bambuswald', 'Wald'),
+        r('schlund-von-paldea', 'Schlund von Paldea (Zone Null)', 'Spezial'),
+        r('dlc-kitakami', 'DLC: Kitakami-Provinz (Optional)', 'DLC'), r('dlc-blaubeer', 'DLC: Blaubeer-Akademie (Optional)', 'DLC')
+      ]
+    };
+
+    // Alle Hauptreihen-Editionen (Gen 1–9) mit exakten Level-Caps & Unterschieden
+    const EDITIONS = {
+      // --- GENERATION 1 ---
+      rb: {
+        id: 'rb', name: 'Rot / Blau', gen: 1, region: 'Kanto', regionKey: 'kanto', color: '#DC2626', dark: '#991B1B', icon: 'fa-fire',
+        gymTitle: 'Kanto Arena-Challenge & Pokémon-Liga',
+        gyms: [
+          g('k1', 1, 'Rocko', 'Marmoria City', 'Felsorden', 'rock', 14, 'Onix (Lv. 14)', 'fa-mountain'),
+          g('k2', 2, 'Misty', 'Azuria City', 'Quellorden', 'water', 21, 'Starmie (Lv. 21)', 'fa-droplet'),
+          g('k3', 3, 'Major Bob', 'Orania City', 'Donnerorden', 'electric', 24, 'Raichu (Lv. 24)', 'fa-bolt'),
+          g('k4', 4, 'Erika', 'Prismania City', 'Farborden', 'grass', 29, 'Giflor (Lv. 29)', 'fa-leaf'),
+          g('k5', 5, 'Koga', 'Fuchsania City', 'Seelenorden', 'poison', 43, 'Smogmog (Lv. 43)', 'fa-skull-crossbones'),
+          g('k6', 6, 'Sabrina', 'Saffronia City', 'Sumpforden', 'psychic', 43, 'Simsala (Lv. 43)', 'fa-eye'),
+          g('k7', 7, 'Pyro', 'Zinnoberinsel', 'Vulkanorden', 'fire', 47, 'Arkani (Lv. 47)', 'fa-fire'),
+          g('k8', 8, 'Giovanni', 'Vertania City', 'Erdorden', 'ground', 50, 'Rizeros (Lv. 50)', 'fa-gem'),
+          g('kc', 9, 'Champ Blau', 'Indigo Plateau', 'Kanto-Champ', 'dragon', 65, 'Starter / Glurak (Lv. 65)', 'fa-crown')
+        ]
+      },
+      yellow: {
+        id: 'yellow', name: 'Gelb', gen: 1, region: 'Kanto', regionKey: 'kanto', color: '#EAB308', dark: '#A16207', icon: 'fa-bolt',
+        gymTitle: 'Kanto Arena-Challenge (Gelb)',
+        gyms: [
+          g('y1', 1, 'Rocko', 'Marmoria City', 'Felsorden', 'rock', 12, 'Onix (Lv. 12)', 'fa-mountain'),
+          g('y2', 2, 'Misty', 'Azuria City', 'Quellorden', 'water', 21, 'Starmie (Lv. 21)', 'fa-droplet'),
+          g('y3', 3, 'Major Bob', 'Orania City', 'Donnerorden', 'electric', 28, 'Raichu (Lv. 28)', 'fa-bolt'),
+          g('y4', 4, 'Erika', 'Prismania City', 'Farborden', 'grass', 32, 'Duflor (Lv. 32)', 'fa-leaf'),
+          g('y5', 5, 'Koga', 'Fuchsania City', 'Seelenorden', 'poison', 50, 'Omot (Lv. 50)', 'fa-skull-crossbones'),
+          g('y6', 6, 'Sabrina', 'Saffronia City', 'Sumpforden', 'psychic', 50, 'Simsala (Lv. 50)', 'fa-eye'),
+          g('y7', 7, 'Pyro', 'Zinnoberinsel', 'Vulkanorden', 'fire', 54, 'Arkani (Lv. 54)', 'fa-fire'),
+          g('y8', 8, 'Giovanni', 'Vertania City', 'Erdorden', 'ground', 55, 'Rizeros (Lv. 55)', 'fa-gem'),
+          g('yc', 9, 'Champ Blau', 'Indigo Plateau', 'Kanto-Champ', 'electric', 65, 'Blitza / Flamara / Aquana (Lv. 65)', 'fa-crown')
+        ]
+      },
+
+      // --- GENERATION 2 ---
+      gsc: {
+        id: 'gsc', name: 'Gold / Silber / Kristall', gen: 2, region: 'Johto', regionKey: 'johto', color: '#D97706', dark: '#92400E', icon: 'fa-feather',
+        gymTitle: 'Johto Arena-Challenge & Silberberg',
+        gyms: [
+          g('j1', 1, 'Falk', 'Viola City', 'Flügelorden', 'flying', 9, 'Tauboga (Lv. 9)', 'fa-feather'),
+          g('j2', 2, 'Kai', 'Azalea City', 'Insektorden', 'bug', 16, 'Sichlor (Lv. 16)', 'fa-bug'),
+          g('j3', 3, 'Bianka', 'Dukatia City', 'Basisorden', 'normal', 20, 'Miltank (Lv. 20)', 'fa-star'),
+          g('j4', 4, 'Jens', 'Teak City', 'Phantomorden', 'ghost', 25, 'Gengar (Lv. 25)', 'fa-ghost'),
+          g('j5', 5, 'Hartwig', 'Anemonia City', 'Faustorden', 'fighting', 30, 'Quappo (Lv. 30)', 'fa-hand-fist'),
+          g('j6', 6, 'Jasmin', 'Oliviana City', 'Stahlorden', 'steel', 35, 'Stahlos (Lv. 35)', 'fa-shield'),
+          g('j7', 7, 'Norbert', 'Mahagonia City', 'Eisorden', 'ice', 31, 'Keifel (Lv. 31)', 'fa-snowflake'),
+          g('j8', 8, 'Sandra', 'Ebenholz City', 'Drachenorden', 'dragon', 40, 'Seedraking (Lv. 40)', 'fa-dragon'),
+          g('jc', 9, 'Champ Siegfried', 'Indigo Plateau', 'Johto-Champ', 'dragon', 50, 'Dragoran (Lv. 50)', 'fa-crown'),
+          g('jr', 10, 'Trainer Rot', 'Silberberg', 'Legende', 'electric', 81, 'Pikachu (Lv. 81)', 'fa-trophy')
+        ]
+      },
+
+      // --- GENERATION 3 ---
+      rs: {
+        id: 'rs', name: 'Rubin / Saphir', gen: 3, region: 'Hoenn', regionKey: 'hoenn', color: '#E11D48', dark: '#9F1239', icon: 'fa-gem',
+        gymTitle: 'Hoenn Arena-Challenge (Rubin/Saphir)',
+        gyms: [
+          g('h1', 1, 'Felizia', 'Metarost City', 'Steinorden', 'rock', 15, 'Nasgnet (Lv. 15)', 'fa-mountain'),
+          g('h2', 2, 'Kamillo', 'Faustauhaven', 'Knöchelorden', 'fighting', 18, 'Makuhita (Lv. 18)', 'fa-hand-fist'),
+          g('h3', 3, 'Walter', 'Malvenfroh City', 'Dynamo-Orden', 'electric', 23, 'Magneton (Lv. 23)', 'fa-bolt'),
+          g('h4', 4, 'Flavia', 'Bad Lavastadt', 'Hitzeorden', 'fire', 28, 'Qurtel (Lv. 28)', 'fa-fire'),
+          g('h5', 5, 'Norman', 'Blütenburg City', 'Balance-Orden', 'normal', 31, 'Letarking (Lv. 31)', 'fa-scale-balanced'),
+          g('h6', 6, 'Wibke', 'Baumhausen City', 'Federorden', 'flying', 33, 'Altaria (Lv. 33)', 'fa-feather'),
+          g('h7', 7, 'Ben & Svenja', 'Moosbach City', 'Mentalorden', 'psychic', 42, 'Sonnfel & Lunastein (Lv. 42)', 'fa-eye'),
+          g('h8', 8, 'Wassili', 'Xeneroville', 'Schauerorden', 'water', 43, 'Milotic (Lv. 43)', 'fa-droplet'),
+          g('hc', 9, 'Champ Troy', 'Prachtpolis City', 'Hoenn-Champ', 'steel', 58, 'Metagross (Lv. 58)', 'fa-crown')
+        ]
+      },
+      emerald: {
+        id: 'emerald', name: 'Smaragd', gen: 3, region: 'Hoenn', regionKey: 'hoenn', color: '#059669', dark: '#065F46', icon: 'fa-gem',
+        gymTitle: 'Hoenn Arena-Challenge (Smaragd)',
+        gyms: [
+          g('e1', 1, 'Felizia', 'Metarost City', 'Steinorden', 'rock', 15, 'Nasgnet (Lv. 15)', 'fa-mountain'),
+          g('e2', 2, 'Kamillo', 'Faustauhaven', 'Knöchelorden', 'fighting', 19, 'Makuhita (Lv. 19)', 'fa-hand-fist'),
+          g('e3', 3, 'Walter', 'Malvenfroh City', 'Dynamo-Orden', 'electric', 24, 'Voltenso (Lv. 24)', 'fa-bolt'),
+          g('e4', 4, 'Flavia', 'Bad Lavastadt', 'Hitzeorden', 'fire', 29, 'Qurtel (Lv. 29)', 'fa-fire'),
+          g('e5', 5, 'Norman', 'Blütenburg City', 'Balance-Orden', 'normal', 31, 'Letarking (Lv. 31)', 'fa-scale-balanced'),
+          g('e6', 6, 'Wibke', 'Baumhausen City', 'Federorden', 'flying', 33, 'Altaria (Lv. 33)', 'fa-feather'),
+          g('e7', 7, 'Ben & Svenja', 'Moosbach City', 'Mentalorden', 'psychic', 42, 'Lepumentas / Xatu (Lv. 42)', 'fa-eye'),
+          g('e8', 8, 'Juan', 'Xeneroville', 'Schauerorden', 'water', 46, 'Seedraking (Lv. 46)', 'fa-droplet', true),
+          g('ec', 9, 'Champ Wassili', 'Prachtpolis City', 'Hoenn-Champ', 'water', 58, 'Milotic (Lv. 58)', 'fa-crown')
+        ]
+      },
+      frlg: {
+        id: 'frlg', name: 'Feuerrot / Blattgrün', gen: 3, region: 'Kanto (Remake)', regionKey: 'kanto', color: '#EA580C', dark: '#9A3412', icon: 'fa-leaf',
+        gymTitle: 'Kanto Arena-Challenge (FR/BG)',
+        gyms: [
+          g('fr1', 1, 'Rocko', 'Marmoria City', 'Felsorden', 'rock', 14, 'Onix (Lv. 14)', 'fa-mountain'),
+          g('fr2', 2, 'Misty', 'Azuria City', 'Quellorden', 'water', 21, 'Starmie (Lv. 21)', 'fa-droplet'),
+          g('fr3', 3, 'Major Bob', 'Orania City', 'Donnerorden', 'electric', 24, 'Raichu (Lv. 24)', 'fa-bolt'),
+          g('fr4', 4, 'Erika', 'Prismania City', 'Farborden', 'grass', 29, 'Giflor (Lv. 29)', 'fa-leaf'),
+          g('fr5', 5, 'Koga', 'Fuchsania City', 'Seelenorden', 'poison', 43, 'Smogmog (Lv. 43)', 'fa-skull-crossbones'),
+          g('fr6', 6, 'Sabrina', 'Saffronia City', 'Sumpforden', 'psychic', 43, 'Simsala (Lv. 43)', 'fa-eye'),
+          g('fr7', 7, 'Pyro', 'Zinnoberinsel', 'Vulkanorden', 'fire', 47, 'Arkani (Lv. 47)', 'fa-fire'),
+          g('fr8', 8, 'Giovanni', 'Vertania City', 'Erdorden', 'ground', 50, 'Rizeros (Lv. 50)', 'fa-gem'),
+          g('frc', 9, 'Champ Blau', 'Indigo Plateau', 'Kanto-Champ', 'dragon', 63, 'Starter (Lv. 63)', 'fa-crown')
+        ]
+      },
+
+      // --- GENERATION 4 ---
+      dp: {
+        id: 'dp', name: 'Diamant / Perl', gen: 4, region: 'Sinnoh', regionKey: 'sinnoh', color: '#3B82F6', dark: '#1D4ED8', icon: 'fa-diamond',
+        gymTitle: 'Sinnoh Arena-Challenge (Diamant/Perl)',
+        gyms: [
+          g('dp1', 1, 'Veit', 'Erzelingen', 'Kohleorden', 'rock', 14, 'Koknodon (Lv. 14)', 'fa-mountain'),
+          g('dp2', 2, 'Silvana', 'Ewigenau', 'Waldorden', 'grass', 22, 'Roserade (Lv. 22)', 'fa-leaf'),
+          g('dp3', 3, 'Hilda', 'Schleiede', 'Bergorden', 'fighting', 30, 'Lucario (Lv. 30)', 'fa-hand-fist'),
+          g('dp4', 4, 'Marinus', 'Weideburg', 'Fennorden', 'water', 30, 'Bojelin (Lv. 30)', 'fa-droplet'),
+          g('dp5', 5, 'Lamina', 'Herzhofen', 'Reliktorden', 'ghost', 36, 'Traunmagil (Lv. 36)', 'fa-ghost'),
+          g('dp6', 6, 'Adam', 'Fleetburg', 'Minenorden', 'steel', 39, 'Bollterus (Lv. 39)', 'fa-shield'),
+          g('dp7', 7, 'Frida', 'Blizzach', 'Firnorden', 'ice', 42, 'Rexblisar (Lv. 42)', 'fa-snowflake'),
+          g('dp8', 8, 'Volkner', 'Sonnewik', 'Lichtorden', 'electric', 49, 'Luxtra (Lv. 49)', 'fa-bolt'),
+          g('dpc', 9, 'Champ Cynthia', 'Pokémon-Liga', 'Sinnoh-Champ', 'dragon', 66, 'Knakrack (Lv. 66)', 'fa-crown')
+        ]
+      },
+      platinum: {
+        id: 'platinum', name: 'Platin', gen: 4, region: 'Sinnoh', regionKey: 'sinnoh', color: '#64748B', dark: '#334155', icon: 'fa-star',
+        gymTitle: 'Sinnoh Arena-Challenge (Platin)',
+        gyms: [
+          g('pt1', 1, 'Veit', 'Erzelingen', 'Kohleorden', 'rock', 14, 'Koknodon (Lv. 14)', 'fa-mountain'),
+          g('pt2', 2, 'Silvana', 'Ewigenau', 'Waldorden', 'grass', 22, 'Roserade (Lv. 22)', 'fa-leaf'),
+          g('pt3', 3, 'Lamina', 'Herzhofen', 'Reliktorden', 'ghost', 26, 'Traunmagil (Lv. 26)', 'fa-ghost', true),
+          g('pt4', 4, 'Hilda', 'Schleiede', 'Bergorden', 'fighting', 32, 'Lucario (Lv. 32)', 'fa-hand-fist'),
+          g('pt5', 5, 'Marinus', 'Weideburg', 'Fennorden', 'water', 37, 'Bojelin (Lv. 37)', 'fa-droplet'),
+          g('pt6', 6, 'Adam', 'Fleetburg', 'Minenorden', 'steel', 41, 'Bollterus (Lv. 41)', 'fa-shield'),
+          g('pt7', 7, 'Frida', 'Blizzach', 'Firnorden', 'ice', 44, 'Frosdedje (Lv. 44)', 'fa-snowflake'),
+          g('pt8', 8, 'Volkner', 'Sonnewik', 'Lichtorden', 'electric', 50, 'Elevoltek (Lv. 50)', 'fa-bolt'),
+          g('ptc', 9, 'Champ Cynthia', 'Pokémon-Liga', 'Sinnoh-Champ', 'dragon', 62, 'Knakrack (Lv. 62)', 'fa-crown')
+        ]
+      },
+      hgss: {
+        id: 'hgss', name: 'HeartGold / SoulSilver', gen: 4, region: 'Johto (Remake)', regionKey: 'johto', color: '#F59E0B', dark: '#B45309', icon: 'fa-heart',
+        gymTitle: 'Johto Arena-Challenge (HG/SS)',
+        gyms: [
+          g('hg1', 1, 'Falk', 'Viola City', 'Flügelorden', 'flying', 13, 'Tauboga (Lv. 13)', 'fa-feather'),
+          g('hg2', 2, 'Kai', 'Azalea City', 'Insektorden', 'bug', 17, 'Sichlor (Lv. 17)', 'fa-bug'),
+          g('hg3', 3, 'Bianka', 'Dukatia City', 'Basisorden', 'normal', 19, 'Miltank (Lv. 19)', 'fa-star'),
+          g('hg4', 4, 'Jens', 'Teak City', 'Phantomorden', 'ghost', 25, 'Gengar (Lv. 25)', 'fa-ghost'),
+          g('hg5', 5, 'Hartwig', 'Anemonia City', 'Faustorden', 'fighting', 31, 'Quappo (Lv. 31)', 'fa-hand-fist'),
+          g('hg6', 6, 'Jasmin', 'Oliviana City', 'Stahlorden', 'steel', 35, 'Stahlos (Lv. 35)', 'fa-shield'),
+          g('hg7', 7, 'Norbert', 'Mahagonia City', 'Eisorden', 'ice', 34, 'Keifel (Lv. 34)', 'fa-snowflake'),
+          g('hg8', 8, 'Sandra', 'Ebenholz City', 'Drachenorden', 'dragon', 41, 'Seedraking (Lv. 41)', 'fa-dragon'),
+          g('hgc', 9, 'Champ Siegfried', 'Indigo Plateau', 'Johto-Champ', 'dragon', 50, 'Dragoran (Lv. 50)', 'fa-crown'),
+          g('hgr', 10, 'Trainer Rot', 'Silberberg', 'Legende', 'electric', 88, 'Pikachu (Lv. 88)', 'fa-trophy')
+        ]
+      },
+
+      // --- GENERATION 5 ---
+      bw: {
+        id: 'bw', name: 'Schwarz / Weiß', gen: 5, region: 'Einall', regionKey: 'unova1', color: '#6366F1', dark: '#4338CA', icon: 'fa-yin-yang',
+        gymTitle: 'Einall Arena-Challenge (S/W)',
+        gyms: [
+          g('bw1', 1, 'Benny / Maik / Colin', 'Orion City', 'Triorden', 'grass', 14, 'Vegimak/Grillmak/Sodamak (Lv. 14)', 'fa-leaf'),
+          g('bw2', 2, 'Aloe', 'Septerna City', 'Grundorden', 'normal', 20, 'Kukmarda (Lv. 20)', 'fa-book'),
+          g('bw3', 3, 'Artie', 'Stratos City', 'Käferorden', 'bug', 23, 'Matrifol (Lv. 23)', 'fa-bug'),
+          g('bw4', 4, 'Kamilla', 'Rayono City', 'Voltorden', 'electric', 27, 'Zebritz (Lv. 27)', 'fa-bolt'),
+          g('bw5', 5, 'Turner', 'Marea City', 'Seismo-Orden', 'ground', 31, 'Stalobor (Lv. 31)', 'fa-mountain'),
+          g('bw6', 6, 'Géraldine', 'Panaero City', 'Jetorden', 'flying', 35, 'Swaroness (Lv. 35)', 'fa-plane'),
+          g('bw7', 7, 'Sandro', 'Nevaio City', 'Eiszapforden', 'ice', 39, 'Siberio (Lv. 39)', 'fa-snowflake'),
+          g('bw8', 8, 'Lysander / Lilia', 'Twigs City', 'Legendenorden', 'dragon', 43, 'Maxax (Lv. 43)', 'fa-dragon'),
+          g('bwc', 9, 'N & G-Cis', 'Schloss von N', 'Finale', 'dragon', 54, 'Trikephalo (Lv. 54)', 'fa-crown')
+        ]
+      },
+      bw2: {
+        id: 'bw2', name: 'Schwarz 2 / Weiß 2', gen: 5, region: 'Einall', regionKey: 'unova2', color: '#4F46E5', dark: '#3730A3', icon: 'fa-bolt-lightning',
+        gymTitle: 'Einall Arena-Challenge (S2/W2)',
+        gyms: [
+          g('b21', 1, 'Cheren', 'Eventura City', 'Grundorden', 'normal', 13, 'Yorkleff (Lv. 13)', 'fa-star'),
+          g('b22', 2, 'Mica', 'Vapydro City', 'Giftorden', 'poison', 18, 'Rollum (Lv. 18)', 'fa-skull-crossbones'),
+          g('b23', 3, 'Artie', 'Stratos City', 'Käferorden', 'bug', 24, 'Matrifol (Lv. 24)', 'fa-bug'),
+          g('b24', 4, 'Kamilla', 'Rayono City', 'Voltorden', 'electric', 30, 'Zebritz (Lv. 30)', 'fa-bolt'),
+          g('b25', 5, 'Turner', 'Marea City', 'Seismo-Orden', 'ground', 33, 'Stalobor (Lv. 33)', 'fa-mountain'),
+          g('b26', 6, 'Géraldine', 'Panaero City', 'Jetorden', 'flying', 39, 'Swaroness (Lv. 39)', 'fa-plane'),
+          g('b27', 7, 'Lysander', 'Twigs City', 'Legendenorden', 'dragon', 48, 'Maxax (Lv. 48)', 'fa-dragon'),
+          g('b28', 8, 'Benson', 'Abidaya City', 'Wellenorden', 'water', 51, 'Apoquallyp (Lv. 51)', 'fa-droplet'),
+          g('b2c', 9, 'Champ Lilia', 'Pokémon-Liga', 'Einall-Champ', 'dragon', 59, 'Maxax (Lv. 59)', 'fa-crown')
+        ]
+      },
+
+      // --- GENERATION 6 ---
+      xy: {
+        id: 'xy', name: 'X / Y', gen: 6, region: 'Kalos', regionKey: 'kalos', color: '#2563EB', dark: '#1E40AF', icon: 'fa-dna',
+        gymTitle: 'Kalos Arena-Challenge & Pokémon-Liga',
+        gyms: [
+          g('x1', 1, 'Viola', 'Nouvaria City', 'Krabborden', 'bug', 12, 'Vivillon (Lv. 12)', 'fa-bug'),
+          g('x2', 2, 'Lino', 'Relievera City', 'Wallorden', 'rock', 25, 'Monargoras (Lv. 25)', 'fa-mountain'),
+          g('x3', 3, 'Connie', 'Yantara City', 'Rauforden', 'fighting', 32, 'Resladero (Lv. 32)', 'fa-hand-fist'),
+          g('x4', 4, 'Amaro', 'Temperia City', 'Blattorden', 'grass', 34, 'Chevrumm (Lv. 34)', 'fa-leaf'),
+          g('x5', 5, 'Citro', 'Illumina City', 'Ampere-Orden', 'electric', 37, 'Elezard (Lv. 37)', 'fa-bolt'),
+          g('x6', 6, 'Valerie', 'Romantia City', 'Feenorden', 'fairy', 42, 'Feelinara (Lv. 42)', 'fa-wand-magic-sparkles'),
+          g('x7', 7, 'Astrid', 'Fluxia City', 'Psi-Orden', 'psychic', 48, 'Psiaugon (Lv. 48)', 'fa-eye'),
+          g('x8', 8, 'Galantho', 'Fractalia City', 'Eisbergorden', 'ice', 59, 'Arktilas (Lv. 59)', 'fa-snowflake'),
+          g('xc', 9, 'Champ Diantha', 'Pokémon-Liga', 'Kalos-Champ', 'fairy', 68, 'Mega-Guardevoir (Lv. 68)', 'fa-crown')
+        ]
+      },
+      oras: {
+        id: 'oras', name: 'Omega Rubin / Alpha Saphir', gen: 6, region: 'Hoenn (Remake)', regionKey: 'hoenn', color: '#0284C7', dark: '#0369A1', icon: 'fa-compass',
+        gymTitle: 'Hoenn Arena-Challenge (OR/AS)',
+        gyms: [
+          g('or1', 1, 'Felizia', 'Metarost City', 'Steinorden', 'rock', 14, 'Nasgnet (Lv. 14)', 'fa-mountain'),
+          g('or2', 2, 'Kamillo', 'Faustauhaven', 'Knöchelorden', 'fighting', 16, 'Makuhita (Lv. 16)', 'fa-hand-fist'),
+          g('or3', 3, 'Walter', 'Malvenfroh City', 'Dynamo-Orden', 'electric', 21, 'Magneton (Lv. 21)', 'fa-bolt'),
+          g('or4', 4, 'Flavia', 'Bad Lavastadt', 'Hitzeorden', 'fire', 28, 'Qurtel (Lv. 28)', 'fa-fire'),
+          g('or5', 5, 'Norman', 'Blütenburg City', 'Balance-Orden', 'normal', 30, 'Letarking (Lv. 30)', 'fa-scale-balanced'),
+          g('or6', 6, 'Wibke', 'Baumhausen City', 'Federorden', 'flying', 35, 'Altaria (Lv. 35)', 'fa-feather'),
+          g('or7', 7, 'Ben & Svenja', 'Moosbach City', 'Mentalorden', 'psychic', 45, 'Sonnfel & Lunastein (Lv. 45)', 'fa-eye'),
+          g('or8', 8, 'Wassili', 'Xeneroville', 'Schauerorden', 'water', 46, 'Milotic (Lv. 46)', 'fa-droplet'),
+          g('orc', 9, 'Champ Troy', 'Prachtpolis City', 'Hoenn-Champ', 'steel', 59, 'Mega-Metagross (Lv. 59)', 'fa-crown')
+        ]
+      },
+
+      // --- GENERATION 7 ---
+      sm: {
+        id: 'sm', name: 'Sonne / Mond', gen: 7, region: 'Alola', regionKey: 'alola', color: '#F97316', dark: '#C2410C', icon: 'fa-sun',
+        gymTitle: 'Alola Inselwanderschaft (Prüfungen & Inselkönige)',
+        gyms: [
+          g('sm1', 1, 'Elima (Prüfung)', 'Vegetationshöhle', 'Normium Z', 'normal', 12, 'Herrscher-Manguspektor / Rattikarl (Lv. 12)', 'fa-paw'),
+          g('sm2', 2, 'Inselkönig Hala', 'Lili’i', 'Battalium Z', 'fighting', 15, 'Krabbox (Lv. 15)', 'fa-hand-fist'),
+          g('sm3', 3, 'Tracy (Prüfung)', 'Plätscherhügel', 'Aquium Z', 'water', 20, 'Herrscher-Lusardin (Lv. 20)', 'fa-droplet'),
+          g('sm4', 4, 'Kiawe (Prüfung)', 'Wela-Vulkanpark', 'Pyrium Z', 'fire', 22, 'Herrscher-Amfira (Lv. 22)', 'fa-fire'),
+          g('sm5', 5, 'Maho (Prüfung)', 'Schattendschungel', 'Botanium Z', 'grass', 24, 'Herrscher-Mantidea (Lv. 24)', 'fa-leaf'),
+          g('sm6', 6, 'Inselkönigin Mayla', 'Ruinen des Lebens', 'Petrium Z', 'rock', 27, 'Wolwerock (Lv. 27)', 'fa-mountain'),
+          g('sm7', 7, 'Chrys (Prüfung)', 'Hokulani-Berg', 'Voltium Z', 'electric', 29, 'Herrscher-Donarion (Lv. 29)', 'fa-bolt'),
+          g('sm8', 8, 'Lola (Prüfung)', 'Schnäppchenladen', 'Phantomium Z', 'ghost', 33, 'Herrscher-Mimigma (Lv. 33)', 'fa-ghost'),
+          g('sm9', 9, 'Inselkönig Yasu', 'Malie City', 'Noctium Z', 'dark', 39, 'Snobilikat (Lv. 39)', 'fa-moon'),
+          g('sm10', 10, 'Grand-Prüfung Poni', 'Canyon von Poni', 'Dracium Z', 'dragon', 45, 'Herrscher-Grandiras (Lv. 45)', 'fa-dragon'),
+          g('smc', 11, 'Prof. Kukui', 'Mount Lanakila', 'Alola-Champ', 'rock', 58, 'Starter / Fuegro / Silvarro / Primarene (Lv. 58)', 'fa-crown')
+        ]
+      },
+      usum: {
+        id: 'usum', name: 'Ultrasonne / Ultramond', gen: 7, region: 'Alola', regionKey: 'alola', color: '#EA580C', dark: '#9A3412', icon: 'fa-sun',
+        gymTitle: 'Alola Inselwanderschaft (US/UM + Ultra-Necrozma)',
+        gyms: [
+          g('us1', 1, 'Elima (Prüfung)', 'Vegetationshöhle', 'Normium Z', 'normal', 12, 'Herrscher-Manguspektor / Rattikarl (Lv. 12)', 'fa-paw'),
+          g('us2', 2, 'Inselkönig Hala', 'Lili’i', 'Battalium Z', 'fighting', 16, 'Krabbox (Lv. 16)', 'fa-hand-fist'),
+          g('us3', 3, 'Tracy (Prüfung)', 'Plätscherhügel', 'Aquium Z', 'water', 20, 'Herrscher-Araquanid (Lv. 20)', 'fa-droplet'),
+          g('us4', 4, 'Kiawe (Prüfung)', 'Wela-Vulkanpark', 'Pyrium Z', 'fire', 22, 'Herrscher-Knogga (Lv. 22)', 'fa-fire'),
+          g('us5', 5, 'Maho (Prüfung)', 'Schattendschungel', 'Botanium Z', 'grass', 24, 'Herrscher-Mantidea (Lv. 24)', 'fa-leaf'),
+          g('us6', 6, 'Inselkönigin Mayla', 'Ruinen des Lebens', 'Petrium Z', 'rock', 28, 'Wolwerock (Lv. 28)', 'fa-mountain'),
+          g('us7', 7, 'Chrys (Prüfung)', 'Hokulani-Berg', 'Voltium Z', 'electric', 33, 'Herrscher-Togedemaru (Lv. 33)', 'fa-bolt'),
+          g('us8', 8, 'Lola (Prüfung)', 'Schnäppchenladen', 'Phantomium Z', 'ghost', 35, 'Herrscher-Mimigma (Lv. 35)', 'fa-ghost'),
+          g('us9', 9, 'Inselkönig Yasu', 'Malie City', 'Noctium Z', 'dark', 44, 'Snobilikat (Lv. 44)', 'fa-moon'),
+          g('us10', 10, 'Ultra-Necrozma', 'Megalo-Turm', 'Licht-Boss', 'psychic', 60, 'Ultra-Necrozma (Lv. 60)', 'fa-burst', true),
+          g('usc', 11, 'Champ Tali', 'Mount Lanakila', 'Alola-Champ', 'electric', 60, 'Starter (Lv. 60)', 'fa-crown')
+        ]
+      },
+      lgpe: {
+        id: 'lgpe', name: "Let's Go, Pikachu! / Evoli!", gen: 7, region: 'Kanto (LGPE)', regionKey: 'kanto', color: '#FACC15', dark: '#CA8A04', icon: 'fa-bolt',
+        gymTitle: "Kanto Arena-Challenge (Let's Go)",
+        gyms: [
+          g('lg1', 1, 'Rocko', 'Marmoria City', 'Felsorden', 'rock', 12, 'Onix (Lv. 12)', 'fa-mountain'),
+          g('lg2', 2, 'Misty', 'Azuria City', 'Quellorden', 'water', 19, 'Starmie (Lv. 19)', 'fa-droplet'),
+          g('lg3', 3, 'Major Bob', 'Orania City', 'Donnerorden', 'electric', 26, 'Raichu (Lv. 26)', 'fa-bolt'),
+          g('lg4', 4, 'Erika', 'Prismania City', 'Farborden', 'grass', 34, 'Giflor (Lv. 34)', 'fa-leaf'),
+          g('lg5', 5, 'Koga', 'Fuchsania City', 'Seelenorden', 'poison', 44, 'Smogmog (Lv. 44)', 'fa-skull-crossbones'),
+          g('lg6', 6, 'Sabrina', 'Saffronia City', 'Sumpforden', 'psychic', 44, 'Simsala (Lv. 44)', 'fa-eye'),
+          g('lg7', 7, 'Pyro', 'Zinnoberinsel', 'Vulkanorden', 'fire', 48, 'Arkani (Lv. 48)', 'fa-fire'),
+          g('lg8', 8, 'Giovanni', 'Vertania City', 'Erdorden', 'ground', 50, 'Rizeros (Lv. 50)', 'fa-gem'),
+          g('lgc', 9, 'Champ Trace', 'Indigo Plateau', 'Kanto-Champ', 'electric', 57, 'Raichu / Blitza (Lv. 57)', 'fa-crown')
+        ]
+      },
+
+      // --- GENERATION 8 ---
+      shield: {
+        id: 'shield', name: 'Schild', gen: 8, region: 'Galar', regionKey: 'galar', color: '#E6005C', dark: '#B80049', icon: 'fa-shield-halved',
+        gymTitle: 'Galar Arena-Challenge & Champ-Cup (Schild)',
+        gyms: [
+          g('gym-1', 1, 'Yarrow', 'Turffield', 'Pflanzen-Orden', 'grass', 20, 'Cottini (Lv. 20)', 'fa-leaf'),
+          g('gym-2', 2, 'Kate', 'Keelton', 'Wasser-Orden', 'water', 24, 'Kamalm (Lv. 24)', 'fa-droplet'),
+          g('gym-3', 3, 'Kabu', 'Engine City', 'Feuer-Orden', 'fire', 27, 'Infernopod (Lv. 27)', 'fa-fire'),
+          g('gym-4', 4, 'Nio (Allister)', 'Passbeck', 'Geister-Orden', 'ghost', 36, 'Gengar (Lv. 36)', 'fa-ghost', true),
+          g('gym-5', 5, 'Papella', 'Fairballey', 'Feen-Orden', 'fairy', 38, 'Pokusan (Lv. 38)', 'fa-wand-magic-sparkles'),
+          g('gym-6', 6, 'Mel (Melony)', 'Circhester', 'Eis-Orden', 'ice', 42, 'Lapras (Lv. 42)', 'fa-snowflake', true),
+          g('gym-7', 7, 'Nezz', 'Spikeford', 'Unlicht-Orden', 'dark', 46, 'Barrikadax (Lv. 46)', 'fa-moon'),
+          g('gym-8', 8, 'Roy', 'Claw City', 'Drachen-Orden', 'dragon', 48, 'Duraludon (Lv. 48)', 'fa-dragon'),
+          g('champ', 9, 'Champ Delion', 'Score City Stadion', 'Galar-Champ', 'fire', 65, 'Glurak (Lv. 65)', 'fa-crown')
+        ]
+      },
+      sword: {
+        id: 'sword', name: 'Schwert', gen: 8, region: 'Galar', regionKey: 'galar', color: '#00A1E9', dark: '#007BB5', icon: 'fa-khanda',
+        gymTitle: 'Galar Arena-Challenge & Champ-Cup (Schwert)',
+        gyms: [
+          g('sw-1', 1, 'Yarrow', 'Turffield', 'Pflanzen-Orden', 'grass', 20, 'Cottini (Lv. 20)', 'fa-leaf'),
+          g('sw-2', 2, 'Kate', 'Keelton', 'Wasser-Orden', 'water', 24, 'Kamalm (Lv. 24)', 'fa-droplet'),
+          g('sw-3', 3, 'Kabu', 'Engine City', 'Feuer-Orden', 'fire', 27, 'Infernopod (Lv. 27)', 'fa-fire'),
+          g('sw-4', 4, 'Saida (Bea)', 'Passbeck', 'Kampf-Orden', 'fighting', 36, 'Machomei (Lv. 36)', 'fa-hand-fist', true),
+          g('sw-5', 5, 'Papella', 'Fairballey', 'Feen-Orden', 'fairy', 38, 'Pokusan (Lv. 38)', 'fa-wand-magic-sparkles'),
+          g('sw-6', 6, 'Mac (Gordie)', 'Circhester', 'Gesteins-Orden', 'rock', 42, 'Montecarbo (Lv. 42)', 'fa-mountain', true),
+          g('sw-7', 7, 'Nezz', 'Spikeford', 'Unlicht-Orden', 'dark', 46, 'Barrikadax (Lv. 46)', 'fa-moon'),
+          g('sw-8', 8, 'Roy', 'Claw City', 'Drachen-Orden', 'dragon', 48, 'Duraludon (Lv. 48)', 'fa-dragon'),
+          g('sw-c', 9, 'Champ Delion', 'Score City Stadion', 'Galar-Champ', 'fire', 65, 'Glurak (Lv. 65)', 'fa-crown')
+        ]
+      },
+      bdsp: {
+        id: 'bdsp', name: 'Strahlender Diamant / Leuchtende Perle', gen: 8, region: 'Sinnoh (Remake)', regionKey: 'sinnoh', color: '#38BDF8', dark: '#0284C7', icon: 'fa-gem',
+        gymTitle: 'Sinnoh Arena-Challenge (SD/LP)',
+        gyms: [
+          g('bd1', 1, 'Veit', 'Erzelingen', 'Kohleorden', 'rock', 14, 'Koknodon (Lv. 14)', 'fa-mountain'),
+          g('bd2', 2, 'Silvana', 'Ewigenau', 'Waldorden', 'grass', 22, 'Roserade (Lv. 22)', 'fa-leaf'),
+          g('bd3', 3, 'Hilda', 'Schleiede', 'Bergorden', 'fighting', 30, 'Lucario (Lv. 30)', 'fa-hand-fist'),
+          g('bd4', 4, 'Marinus', 'Weideburg', 'Fennorden', 'water', 30, 'Bojelin (Lv. 30)', 'fa-droplet'),
+          g('bd5', 5, 'Lamina', 'Herzhofen', 'Reliktorden', 'ghost', 36, 'Traunmagil (Lv. 36)', 'fa-ghost'),
+          g('bd6', 6, 'Adam', 'Fleetburg', 'Minenorden', 'steel', 39, 'Bollterus (Lv. 39)', 'fa-shield'),
+          g('bd7', 7, 'Frida', 'Blizzach', 'Firnorden', 'ice', 42, 'Rexblisar (Lv. 42)', 'fa-snowflake'),
+          g('bd8', 8, 'Volkner', 'Sonnewik', 'Lichtorden', 'electric', 49, 'Luxtra (Lv. 49)', 'fa-bolt'),
+          g('bdc', 9, 'Champ Cynthia', 'Pokémon-Liga', 'Sinnoh-Champ', 'dragon', 66, 'Knakrack (Lv. 66)', 'fa-crown')
+        ]
+      },
+      pla: {
+        id: 'pla', name: 'Legenden: Arceus', gen: 8, region: 'Hisui', regionKey: 'hisui', color: '#14B8A6', dark: '#0F766E', icon: 'fa-scroll',
+        gymTitle: 'Hisui Königliche Pokémon & Finale',
+        gyms: [
+          g('la1', 1, 'Axantor (König)', 'Grandtree-Arena', 'Wald-König', 'bug', 18, 'Axantor (Lv. 18)', 'fa-bug'),
+          g('la2', 2, 'Dressella (Königin)', 'Brava-Arena', 'Moor-Königin', 'grass', 30, 'Hisui-Dressella (Lv. 30)', 'fa-leaf'),
+          g('la3', 3, 'Arkani (König)', 'Feuerspei-Insel', 'Insel-König', 'fire', 40, 'Hisui-Arkani (Lv. 40)', 'fa-fire'),
+          g('la4', 4, 'Lektrobal (König)', 'Mondblick-Arena', 'Berg-König', 'electric', 46, 'Hisui-Lektrobal (Lv. 46)', 'fa-bolt'),
+          g('la5', 5, 'Arktilas (König)', 'Eisblock-Arena', 'Eis-König', 'ice', 56, 'Hisui-Arktilas (Lv. 56)', 'fa-snowflake'),
+          g('la6', 6, 'Dialga / Palkia', 'Sinnoh-Tempel', 'Urzeit-Boss', 'dragon', 65, 'Ur-Dialga / Ur-Palkia (Lv. 65)', 'fa-dragon'),
+          g('lac', 7, 'Volo & Giratina', 'Sinnoh-Tempel', 'Finale', 'ghost', 70, 'Giratina (Lv. 70)', 'fa-crown')
+        ]
+      },
+
+      // --- GENERATION 9 ---
+      sv: {
+        id: 'sv', name: 'Karmesin / Purpur', gen: 9, region: 'Paldea', regionKey: 'paldea', color: '#9333EA', dark: '#6B21A8', icon: 'fa-compass',
+        gymTitle: 'Paldea Weg des Champs, Straße der Sterne & Pfad der Legenden',
+        gyms: [
+          g('sv1', 1, 'Ronah (Käfer-Arena)', 'Moldrid', 'Käfer-Orden', 'bug', 15, 'Teddiursa (Lv. 15)', 'fa-bug'),
+          g('sv2', 2, 'Klibbe-Titan', 'Südliche Zone 3', 'Fels-Titan', 'rock', 16, 'Herrscher-Klibbe (Lv. 16)', 'fa-mountain'),
+          g('sv3', 3, 'Colzo (Pflanzen-Arena)', 'Bolardin', 'Pflanzen-Orden', 'grass', 17, 'Mogelbaum (Lv. 17)', 'fa-leaf'),
+          g('sv4', 4, 'Adebom-Titan', 'Westliche Zone 1', 'Flug-Titan', 'flying', 19, 'Herrscher-Adebom (Lv. 19)', 'fa-feather'),
+          g('sv5', 5, 'Pinio (Team Star Unlicht)', 'Westliche Zone 1', 'Unlicht-Marke', 'dark', 21, 'Knattatox (Lv. 21)', 'fa-moon'),
+          g('sv6', 6, 'Enigmara (Elektro-Arena)', 'Fermanca City', 'Elektro-Orden', 'electric', 24, 'Traunmagil (Lv. 24)', 'fa-bolt'),
+          g('sv7', 7, 'Irsa (Team Star Feuer)', 'Östliche Zone 1', 'Feuer-Marke', 'fire', 27, 'Knattatox (Lv. 27)', 'fa-fire'),
+          g('sv8', 8, 'Schlurm-Titan', 'Östliche Zone 3', 'Stahl-Titan', 'steel', 28, 'Herrscher-Schlurm (Lv. 28)', 'fa-shield'),
+          g('sv9', 9, 'Kombu (Wasser-Arena)', 'Garrafosa City', 'Wasser-Orden', 'water', 30, 'Krawell (Lv. 30)', 'fa-droplet'),
+          g('sv10', 10, 'Shroodle / Riolu (Gift-Boss)', 'Schmierhain', 'Gift-Marke', 'poison', 33, 'Knattatox (Lv. 33)', 'fa-skull-crossbones'),
+          g('sv11', 11, 'Aoki (Normal-Arena)', 'Mesclarra', 'Normal-Orden', 'normal', 36, 'Staraptor (Lv. 36)', 'fa-briefcase'),
+          g('sv12', 12, 'Echnatoll / Riesenzahn (Boden-Titan)', 'Brutzelsee', 'Boden-Titan', 'ground', 44, 'Riesenzahn / Eisenrad (Lv. 44)', 'fa-gem'),
+          g('sv13', 13, 'Etta (Geist-Arena)', 'Frigomonta', 'Geist-Orden', 'ghost', 42, 'Riffex (Lv. 42)', 'fa-ghost'),
+          g('sv14', 14, 'Tafforgita (Psycho-Arena)', 'Asarilla', 'Psycho-Orden', 'psychic', 45, 'Florges (Lv. 45)', 'fa-eye'),
+          g('sv15', 15, 'Grusha (Eis-Arena)', 'Montanata', 'Eis-Orden', 'ice', 48, 'Altaria (Lv. 48)', 'fa-snowflake'),
+          g('sv16', 16, 'Otis (Team Star Fee)', 'Nördliche Zone 3', 'Feen-Marke', 'fairy', 51, 'Knattatox (Lv. 51)', 'fa-wand-magic-sparkles'),
+          g('sv17', 17, 'Heerashai-Titan', 'Casseroya-See', 'Drachen-Titan', 'dragon', 55, 'Heerashai & Nigiragi (Lv. 55)', 'fa-dragon'),
+          g('sv18', 18, 'Cosima (Team Star Kampf)', 'Nördliche Zone 2', 'Kampf-Marke', 'fighting', 56, 'Knattatox (Lv. 56)', 'fa-hand-fist'),
+          g('svc', 19, 'Top-Champ Sagaria & Zone Null', 'Pokémon-Liga / Zone Null', 'Paldea-Champ', 'rock', 67, 'Lumiflora / Paradox-Boss (Lv. 67)', 'fa-crown')
+        ]
+      }
+    };
+
+    // Deutsche Typen-Übersetzung & Farben
+    const TYPE_INFO = {
+      normal:   { de: 'Normal',   bg: 'bg-stone-500',   text: 'text-white' },
+      fire:     { de: 'Feuer',    bg: 'bg-orange-600',  text: 'text-white' },
+      water:    { de: 'Wasser',   bg: 'bg-blue-600',    text: 'text-white' },
+      electric: { de: 'Elektro',  bg: 'bg-yellow-500',  text: 'text-slate-950' },
+      grass:    { de: 'Pflanze',  bg: 'bg-emerald-600', text: 'text-white' },
+      ice:      { de: 'Eis',      bg: 'bg-cyan-400',    text: 'text-slate-950' },
+      fighting: { de: 'Kampf',    bg: 'bg-red-700',     text: 'text-white' },
+      poison:   { de: 'Gift',     bg: 'bg-purple-600',  text: 'text-white' },
+      ground:   { de: 'Boden',    bg: 'bg-amber-700',   text: 'text-white' },
+      flying:   { de: 'Flug',     bg: 'bg-indigo-400',  text: 'text-slate-950' },
+      psychic:  { de: 'Psycho',   bg: 'bg-pink-600',    text: 'text-white' },
+      bug:      { de: 'Käfer',    bg: 'bg-lime-600',    text: 'text-white' },
+      rock:     { de: 'Gestein',  bg: 'bg-yellow-700',  text: 'text-white' },
+      ghost:    { de: 'Geist',    bg: 'bg-violet-800',  text: 'text-white' },
+      dragon:   { de: 'Drache',   bg: 'bg-indigo-700',  text: 'text-white' },
+      dark:     { de: 'Unlicht',  bg: 'bg-neutral-800', text: 'text-white' },
+      steel:    { de: 'Stahl',    bg: 'bg-slate-500',   text: 'text-white' },
+      fairy:    { de: 'Fee',      bg: 'bg-pink-400',    text: 'text-slate-950' }
+    };
+
+    const TYPE_CHART = {
+      normal:   { rock: 0.5, ghost: 0, steel: 0.5 },
+      fire:     { fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2 },
+      water:    { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+      electric: { water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+      grass:    { fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5, steel: 0.5 },
+      ice:      { fire: 0.5, water: 0.5, grass: 2, ice: 0.5, ground: 2, flying: 2, dragon: 2, steel: 0.5 },
+      fighting: { normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dark: 2, steel: 2, fairy: 0.5 },
+      poison:   { grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0, fairy: 2 },
+      ground:   { fire: 2, electric: 2, grass: 0.5, poison: 2, flying: 0, bug: 0.5, rock: 2, steel: 2 },
+      flying:   { electric: 0.5, grass: 2, fighting: 2, bug: 2, rock: 0.5, steel: 0.5 },
+      psychic:  { fighting: 2, poison: 2, psychic: 0.5, dark: 0, steel: 0.5 },
+      bug:      { fire: 0.5, grass: 2, fighting: 0.5, poison: 0.5, flying: 0.5, psychic: 2, ghost: 0.5, dark: 2, steel: 0.5, fairy: 0.5 },
+      rock:     { fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2, steel: 0.5 },
+      ghost:    { normal: 0, psychic: 2, ghost: 2, dark: 0.5 },
+      dragon:   { dragon: 2, steel: 0.5, fairy: 0 },
+      dark:     { fighting: 0.5, psychic: 2, ghost: 2, dark: 0.5, fairy: 0.5 },
+      steel:    { fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, steel: 0.5, fairy: 2 },
+      fairy:    { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 }
+    };
+
+    // =========================================================================
+    // 2. MULTI-RUN STATE & POKEAPI CACHE (GEN 1–9)
+    // =========================================================================
+
+    let rootState = {
+      activeRunId: 'default-shield',
+      runs: {}
+    };
+
+    let allPokemonDexList = []; // [{ id, slug, nameDe, nameEn }] für alle 1025 Pokémon
+    const pokemonDetailsCache = {};
+    const evolutionChainCache = {};
+    let selectedModalPokemon = null;
+
+    function getActiveRun() {
+      return rootState.runs[rootState.activeRunId];
+    }
+
+    function getEditionConfig(editionId) {
+      return EDITIONS[editionId] || EDITIONS.shield;
+    }
+
+    function applyEditionTheme(edition) {
+      document.documentElement.style.setProperty('--accent-color', edition.color);
+      document.documentElement.style.setProperty('--accent-dark', edition.dark);
+      document.documentElement.style.setProperty('--accent-soft', edition.color + '29');
+
+      document.getElementById('header-icon').className = `fa-solid ${edition.icon} text-white text-xl`;
+      document.getElementById('header-title').innerHTML = `Pokémon <span class="text-accent">${escapeHtml(edition.name)}</span> Nuzlocke`;
+      document.getElementById('header-region-badge').textContent = `GEN ${edition.gen} • ${edition.region.toUpperCase()}`;
+      document.getElementById('team-region-heading').innerHTML = `<i class="fa-solid ${edition.icon} text-accent"></i> Dein ${escapeHtml(edition.region)}-Team`;
+      document.getElementById('gym-edition-badge').textContent = `Pokémon ${edition.name} • ${edition.region} (Gen ${edition.gen})`;
+      document.getElementById('gym-heading').textContent = edition.gymTitle;
+      document.getElementById('tab-gyms-label').textContent = edition.gen === 7 ? 'Prüfungen & Level-Caps' : 'Orden & Level-Caps';
+    }
+
+    // =========================================================================
+    // 3. INITIALISIERUNG, STORAGE & MIGRATION DEINES SCHILD-RUNS
+    // =========================================================================
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadStateFromStorage();
+      populateEditionSelector();
+      applyEditionTheme(getEditionConfig(getActiveRun().editionId));
+      renderAll();
+      initNationalPokedex();
+    });
+
+    function createRunObject(id, name, editionId, customRoutes = null, encounters = {}, defeatedGyms = []) {
+      const ed = getEditionConfig(editionId);
+      const baseRoutes = REGION_ROUTES[ed.regionKey].map(item => ({ ...item }));
+      return {
+        id,
+        name,
+        editionId: ed.id,
+        routes: customRoutes || baseRoutes,
+        encounters,
+        defeatedGyms
+      };
+    }
+
+    function loadStateFromStorage() {
+      try {
+        const multiSaved = localStorage.getItem(MULTI_STORAGE_KEY);
+        if (multiSaved) {
+          const parsed = JSON.parse(multiSaved);
+          if (parsed && parsed.runs && Object.keys(parsed.runs).length > 0) {
+            rootState = parsed;
+            if (!rootState.runs[rootState.activeRunId]) {
+              rootState.activeRunId = Object.keys(rootState.runs)[0];
+            }
+            return;
+          }
+        }
+
+        // Migration deines bisherigen Pokémon Schild Spielstands
+        const legacySaved = localStorage.getItem(LEGACY_SHIELD_KEY);
+        if (legacySaved) {
+          const legacy = JSON.parse(legacySaved);
+          const shieldRun = createRunObject(
+            'default-shield',
+            'Schild Haupt-Run',
+            'shield',
+            legacy.routes || null,
+            legacy.encounters || {},
+            legacy.defeatedGyms || []
+          );
+          rootState = { activeRunId: 'default-shield', runs: { 'default-shield': shieldRun } };
+          saveStateToStorage();
+          return;
+        }
+      } catch (e) {
+        console.error('Fehler beim Laden:', e);
+      }
+
+      // Standard-Start: Pokémon Schild Run
+      const defaultRun = createRunObject('default-shield', 'Schild Run #1', 'shield');
+      rootState = { activeRunId: 'default-shield', runs: { 'default-shield': defaultRun } };
+      saveStateToStorage();
+    }
+
+    function saveStateToStorage() {
+      try {
+        localStorage.setItem(MULTI_STORAGE_KEY, JSON.stringify(rootState));
+      } catch (err) {
+        showToast('Speicherplatz voll – bitte Export nutzen.', 'error');
+      }
+      updateHeaderStats();
+    }
+
+    // =========================================================================
+    // 4. POKEAPI INTEGRATION FÜR ALLE 9 GENERATIONEN (1025 POKÉMON AUF DEUTSCH)
+    // =========================================================================
+
+    async function initNationalPokedex() {
+      const statusEl = document.getElementById('pokedex-status');
+      try {
+        // 1. Lade alle 1025 Pokémon-Spezies (Gen 1 bis Gen 9)
+        const listRes = await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=1025');
+        if (!listRes.ok) throw new Error('Species-Liste nicht erreichbar');
+        const listData = await listRes.json();
+
+        allPokemonDexList = listData.results.map((item, idx) => {
+          const id = idx + 1;
+          return {
+            id,
+            slug: item.name,
+            nameDe: capitalize(item.name),
+            nameEn: capitalize(item.name)
+          };
+        });
+
+        // 2. Deutsche Namen aus Cache oder stabiler PokeAPI GraphQL-API laden
+        let germanNamesMap = null;
+        try {
+          const cached = localStorage.getItem(GERMAN_NAMES_CACHE_KEY);
+          if (cached) germanNamesMap = JSON.parse(cached);
+        } catch (e) {}
+
+        if (!germanNamesMap || Object.keys(germanNamesMap).length < 1000) {
+          const gqlQuery = {
+            query: `query {
+              pokemon_v2_pokemonspeciesname(where: {language_id: {_eq: 6}}) {
+                pokemon_species_id
+                name
+              }
+            }`
+          };
+
+          for (const url of ['https://graphql.pokeapi.co/v1beta2', 'https://beta.pokeapi.co/graphql/v1beta']) {
+            try {
+              const gqlRes = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(gqlQuery)
+              });
+              if (gqlRes.ok) {
+                const gqlData = await gqlRes.json();
+                const list = gqlData?.data?.pokemon_v2_pokemonspeciesname || [];
+                if (list.length > 0) {
+                  germanNamesMap = {};
+                  list.forEach(item => {
+                    germanNamesMap[item.pokemon_species_id] = item.name;
+                  });
+                  try { localStorage.setItem(GERMAN_NAMES_CACHE_KEY, JSON.stringify(germanNamesMap)); } catch (e) {}
+                  break;
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
+        if (germanNamesMap && Object.keys(germanNamesMap).length > 0) {
+          allPokemonDexList = allPokemonDexList.map(p => ({
+            ...p,
+            nameDe: germanNamesMap[p.id] || p.nameDe
+          }));
+          statusEl.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            PokeAPI verbunden (${allPokemonDexList.length} Pokémon Gen 1–9 auf Deutsch)
+          `;
+        } else {
+          statusEl.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            PokeAPI Live-Suche aktiv (Gen 1–9 Direktabruf)
+          `;
+        }
+      } catch (err) {
+        statusEl.innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+          PokeAPI Live-Suche aktiv (Direktabruf)
+        `;
+      }
+    }
+
+    async function fetchPokemonFullData(identifier) {
+      const key = String(identifier).toLowerCase().trim();
+      if (pokemonDetailsCache[key]) return pokemonDetailsCache[key];
+
+      let speciesData = null;
+      let pokemonData = null;
+
+      const spRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${key}/`);
+      if (spRes.ok) {
+        speciesData = await spRes.json();
+        const defaultVar = speciesData.varieties.find(v => v.is_default) || speciesData.varieties[0];
+        const pkRes = await fetch(defaultVar.pokemon.url);
+        if (!pkRes.ok) throw new Error('Pokémon-Daten nicht gefunden');
+        pokemonData = await pkRes.json();
+      } else {
+        const pkRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${key}/`);
+        if (!pkRes.ok) throw new Error('Pokémon nicht gefunden');
+        pokemonData = await pkRes.json();
+        const spRes2 = await fetch(pokemonData.species.url);
+        if (spRes2.ok) speciesData = await spRes2.json();
+      }
+
+      let nameDe = capitalize(pokemonData.name);
+      let nameEn = capitalize(pokemonData.name);
+
+      if (speciesData && Array.isArray(speciesData.names)) {
+        const deObj = speciesData.names.find(n => n.language.name === 'de');
+        const enObj = speciesData.names.find(n => n.language.name === 'en');
+        if (deObj) nameDe = deObj.name;
+        if (enObj) nameEn = enObj.name;
+      }
+
+      // Regionalformen (Alola, Galar, Hisui, Paldea) sauber kennzeichnen
+      const regionPrefixes = [
+        { suffix: '-alola', de: 'Alola-', en: 'Alolan ' },
+        { suffix: '-galar', de: 'Galar-', en: 'Galarian ' },
+        { suffix: '-hisui', de: 'Hisui-', en: 'Hisuian ' },
+        { suffix: '-paldea', de: 'Paldea-', en: 'Paldean ' }
+      ];
+      for (const rp of regionPrefixes) {
+        if (pokemonData.name.includes(rp.suffix)) {
+          nameDe = `${rp.de}${nameDe}`;
+          nameEn = `${rp.en}${nameEn}`;
+          break;
+        }
+      }
+
+      const sprite =
+        pokemonData.sprites?.other?.['official-artwork']?.front_default ||
+        pokemonData.sprites?.front_default ||
+        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonData.id}.png`;
+
+      const types = pokemonData.types.sort((a, b) => a.slot - b.slot).map(t => t.type.name);
+      const statsMap = {};
+      pokemonData.stats.forEach(s => { statsMap[s.stat.name] = s.base_stat; });
+
+      const formatted = {
+        id: speciesData ? speciesData.id : pokemonData.id,
+        pokemonId: pokemonData.id,
+        slug: pokemonData.name,
+        speciesSlug: speciesData ? speciesData.name : pokemonData.name,
+        nameDe,
+        nameEn,
+        sprite,
+        types,
+        stats: {
+          hp: statsMap['hp'] || 0,
+          atk: statsMap['attack'] || 0,
+          def: statsMap['defense'] || 0,
+          spa: statsMap['special-attack'] || 0,
+          spd: statsMap['special-defense'] || 0,
+          spe: statsMap['speed'] || 0
+        },
+        evoChainUrl: speciesData?.evolution_chain?.url || null
+      };
+
+      pokemonDetailsCache[key] = formatted;
+      pokemonDetailsCache[formatted.slug] = formatted;
+      pokemonDetailsCache[String(formatted.id)] = formatted;
+      return formatted;
+    }
+
+    async function fetchEvolutionChain(evoChainUrl) {
+      if (!evoChainUrl) return [];
+      if (evolutionChainCache[evoChainUrl]) return evolutionChainCache[evoChainUrl];
+
+      try {
+        const res = await fetch(evoChainUrl);
+        if (!res.ok) return [];
+        const data = await res.json();
+
+        const chainNodes = [];
+        function traverse(node) {
+          if (!node) return;
+          const urlParts = node.species.url.split('/').filter(Boolean);
+          const spId = parseInt(urlParts[urlParts.length - 1], 10);
+          chainNodes.push({
+            id: spId,
+            slug: node.species.name,
+            evolvesTo: (node.evolves_to || []).map(child => {
+              const cParts = child.species.url.split('/').filter(Boolean);
+              return { id: parseInt(cParts[cParts.length - 1], 10), slug: child.species.name };
+            })
+          });
+          (node.evolves_to || []).forEach(traverse);
+        }
+        traverse(data.chain);
+        evolutionChainCache[evoChainUrl] = chainNodes;
+        return chainNodes;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    // =========================================================================
+    // 5. MULTI-RUN MANAGER (EDITIONEN WECHSELN / NEUE RUNS STARTEN)
+    // =========================================================================
+
+    function populateEditionSelector() {
+      const select = document.getElementById('new-run-edition');
+      const grouped = {};
+      Object.values(EDITIONS).forEach(ed => {
+        if (!grouped[ed.gen]) grouped[ed.gen] = [];
+        grouped[ed.gen].push(ed);
+      });
+
+      select.innerHTML = Object.entries(grouped)
+        .map(([gen, list]) => `
+          <optgroup label="Generation ${gen}">
+            ${list.map(ed => `<option value="${ed.id}" ${ed.id === 'platinum' ? 'selected' : ''}>Pokémon ${ed.name} (${ed.region})</option>`).join('')}
+          </optgroup>
+        `)
+        .join('');
+    }
+
+    function openRunsModal() {
+      renderRunsList();
+      const modal = document.getElementById('runs-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeRunsModal() {
+      const modal = document.getElementById('runs-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderRunsList() {
+      const container = document.getElementById('runs-list');
+      const runs = Object.values(rootState.runs);
+
+      container.innerHTML = runs
+        .map(run => {
+          const ed = getEditionConfig(run.editionId);
+          const isActive = run.id === rootState.activeRunId;
+          const caught = Object.values(run.encounters).filter(e => e.status === 'team' || e.status === 'box').length;
+          const dead = Object.values(run.encounters).filter(e => e.status === 'dead').length;
+
+          return `
+            <div class="p-3 rounded-xl border ${isActive ? 'bg-slate-950 border-accent' : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'} flex items-center justify-between gap-3">
+              <div onclick="switchActiveRun('${run.id}')" class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0" style="background:${ed.color}">
+                  <i class="fa-solid ${ed.icon}"></i>
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-sm text-white truncate">${escapeHtml(run.name)}</span>
+                    ${isActive ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-accent text-white">Aktiv</span>' : ''}
+                  </div>
+                  <div class="text-xs text-slate-400">
+                    Pokémon ${ed.name} (Gen ${ed.gen}) • ${caught} Gefangen, ${dead} K.O.
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${!isActive ? `<button onclick="switchActiveRun('${run.id}')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-accent text-xs font-semibold text-white transition">Laden</button>` : ''}
+                ${runs.length > 1 ? `<button onclick="deleteRun('${run.id}')" title="Run löschen" class="p-2 rounded-lg bg-slate-800 hover:bg-rose-900 text-slate-400 hover:text-rose-300 text-xs transition"><i class="fa-solid fa-trash"></i></button>` : ''}
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function createNewRun(event) {
+      event.preventDefault();
+      const editionId = document.getElementById('new-run-edition').value;
+      const ed = getEditionConfig(editionId);
+      const rawName = document.getElementById('new-run-name').value.trim();
+      const runName = rawName || `${ed.name} Run`;
+
+      const newId = 'run-' + Date.now();
+      rootState.runs[newId] = createRunObject(newId, runName, editionId);
+      rootState.activeRunId = newId;
+      document.getElementById('new-run-name').value = '';
+
+      saveStateToStorage();
+      applyEditionTheme(ed);
+      closeRunsModal();
+      renderAll();
+      showToast(`Neuer Run "${runName}" (${ed.name}) gestartet!`, 'success');
+    }
+
+    function switchActiveRun(runId) {
+      if (!rootState.runs[runId]) return;
+      rootState.activeRunId = runId;
+      saveStateToStorage();
+      applyEditionTheme(getEditionConfig(getActiveRun().editionId));
+      closeRunsModal();
+      renderAll();
+      showToast(`Zu "${getActiveRun().name}" gewechselt.`, 'info');
+    }
+
+    function deleteRun(runId) {
+      const run = rootState.runs[runId];
+      if (!run || Object.keys(rootState.runs).length <= 1) return;
+      showConfirmDialog(
+        'Spielstand löschen?',
+        `Möchtest du den Run "${run.name}" wirklich unwiderruflich löschen?`,
+        () => {
+          delete rootState.runs[runId];
+          if (rootState.activeRunId === runId) {
+            rootState.activeRunId = Object.keys(rootState.runs)[0];
+          }
+          saveStateToStorage();
+          applyEditionTheme(getEditionConfig(getActiveRun().editionId));
+          renderRunsList();
+          renderAll();
+          showToast('Run gelöscht.', 'info');
+        }
+      );
+    }
+
+    // =========================================================================
+    // 6. AUTOCOMPLETE SUCHE, DUPES CLAUSE & ENCOUNTERS
+    // =========================================================================
+
+    function handlePokemonSearch(query) {
+      const dropdown = document.getElementById('pokemon-autocomplete-list');
+      const q = query.trim().toLowerCase();
+      if (!q) { dropdown.classList.add('hidden'); return; }
+
+      const matches = allPokemonDexList
+        .filter(p =>
+          p.nameDe.toLowerCase().includes(q) ||
+          p.nameEn.toLowerCase().includes(q) ||
+          p.slug.toLowerCase().includes(q) ||
+          String(p.id) === q
+        )
+        .slice(0, 15);
+
+      let html = matches
+        .map(p => `
+          <button type="button" onclick="selectPokemonFromSearch('${p.slug}', false)" class="w-full px-3.5 py-2.5 text-left hover:bg-slate-800 flex items-center justify-between transition">
+            <div class="flex items-center gap-2.5">
+              <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" onerror="this.style.display='none'" class="w-8 h-8 object-contain" alt="" />
+              <div>
+                <span class="font-semibold text-sm text-white">${p.nameDe}</span>
+                ${p.nameEn && p.nameEn.toLowerCase() !== p.nameDe.toLowerCase() ? `<span class="text-xs text-slate-400 ml-1.5">(${p.nameEn})</span>` : ''}
+              </div>
+            </div>
+            <span class="text-xs text-slate-500 font-mono">#${String(p.id).padStart(4, '0')}</span>
+          </button>
+        `)
+        .join('');
+
+      html += `
+        <button type="button" onclick="selectPokemonFromSearch('${escapeHtml(q)}', true)" class="w-full px-3.5 py-2.5 text-left bg-slate-900/90 hover:bg-accent/20 text-xs text-accent font-semibold flex items-center justify-between transition">
+          <span><i class="fa-solid fa-cloud-arrow-down mr-1.5"></i> Direkt in PokeAPI suchen: "${escapeHtml(query)}"</span>
+          <span>Enter ↵</span>
+        </button>
+      `;
+
+      dropdown.innerHTML = html;
+      dropdown.classList.remove('hidden');
+    }
+
+    async function selectPokemonFromSearch(identifier, isDirectQuery) {
+      const dropdown = document.getElementById('pokemon-autocomplete-list');
+      const spinner = document.getElementById('pokemon-search-spinner');
+      dropdown.classList.add('hidden');
+      spinner.classList.remove('hidden');
+
+      try {
+        let querySlug = identifier;
+        // Deutsche Regionalform-Eingabe ("galar-ponita", "alola-vulpix", "hisui-fukano", "paldea-felino") übersetzen
+        if (isDirectQuery) {
+          const regionPrefixes = ['alola-', 'galar-', 'hisui-', 'paldea-'];
+          for (const pref of regionPrefixes) {
+            if (querySlug.startsWith(pref)) {
+              const baseName = querySlug.slice(pref.length);
+              const found = allPokemonDexList.find(p => p.nameDe.toLowerCase() === baseName || p.slug === baseName);
+              if (found) querySlug = `${found.slug}-${pref.slice(0, -1)}`;
+              break;
+            }
+          }
+        }
+
+        const pokeData = await fetchPokemonFullData(querySlug);
+        selectedModalPokemon = pokeData;
+        document.getElementById('pokemon-search-input').value = pokeData.nameDe;
+
+        renderModalPokemonPreview(pokeData);
+        await checkDupesClause(pokeData);
+      } catch (err) {
+        showToast(`Pokémon "${identifier}" konnte nicht in der PokeAPI gefunden werden.`, 'error');
+      } finally {
+        spinner.classList.add('hidden');
+      }
+    }
+
+    function renderModalPokemonPreview(poke) {
+      document.getElementById('selected-pokemon-preview').classList.remove('hidden');
+      document.getElementById('preview-sprite').src = poke.sprite;
+      document.getElementById('preview-dex-num').textContent = `#${String(poke.id).padStart(3, '0')}`;
+      document.getElementById('preview-name-de').textContent = poke.nameDe;
+      document.getElementById('preview-name-en').textContent = poke.nameEn !== poke.nameDe ? `(${poke.nameEn})` : '';
+      document.getElementById('preview-types').innerHTML = poke.types.map(t => renderTypeBadge(t)).join('');
+
+      const statLabels = [
+        { key: 'hp', label: 'KP' }, { key: 'atk', label: 'Ang' }, { key: 'def', label: 'Vert' },
+        { key: 'spa', label: 'SpA' }, { key: 'spd', label: 'SpV' }, { key: 'spe', label: 'Init' }
+      ];
+      document.getElementById('preview-stats').innerHTML = statLabels
+        .map(s => `<div class="bg-slate-900 border border-slate-800 rounded-lg py-1 px-1.5"><div class="text-[10px] text-slate-400 uppercase">${s.label}</div><div class="text-xs font-bold text-white">${poke.stats[s.key]}</div></div>`)
+        .join('');
+    }
+
+    async function checkDupesClause(pokeData) {
+      const run = getActiveRun();
+      const warningBox = document.getElementById('dupes-warning');
+      const warningText = document.getElementById('dupes-warning-text');
+      const editingRouteId = document.getElementById('edit-route-id').value;
+
+      const existingEncounters = Object.entries(run.encounters)
+        .filter(([rId, enc]) => rId !== editingRouteId && enc.pokemon && enc.status !== 'missed');
+
+      if (existingEncounters.length === 0) {
+        warningBox.classList.add('hidden');
+        return;
+      }
+
+      const chainNodes = await fetchEvolutionChain(pokeData.evoChainUrl);
+      const familyIds = new Set(chainNodes.map(n => n.id));
+      familyIds.add(pokeData.id);
+
+      const duplicate = existingEncounters.find(([, enc]) => familyIds.has(enc.pokemon.id));
+      if (duplicate) {
+        const [dupRouteId, dupEnc] = duplicate;
+        const routeObj = run.routes.find(r => r.id === dupRouteId);
+        warningText.textContent = `Du hast bereits "${dupEnc.nickname || dupEnc.pokemon.nameDe}" (${dupEnc.pokemon.nameDe}) auf "${routeObj ? routeObj.name : dupRouteId}" gefangen! Nach der Dupes Clause darfst du neu würfeln.`;
+        warningBox.classList.remove('hidden');
+      } else {
+        warningBox.classList.add('hidden');
+      }
+    }
+
+    function openEncounterModal(routeId = null) {
+      const run = getActiveRun();
+      const ed = getEditionConfig(run.editionId);
+      const modal = document.getElementById('encounter-modal');
+      const routeSelect = document.getElementById('modal-route-select');
+      const deleteBtn = document.getElementById('modal-delete-btn');
+
+      document.getElementById('modal-route-label').textContent = `Ort / Route in ${ed.region}`;
+      routeSelect.innerHTML = run.routes
+        .map(r => `<option value="${r.id}">${r.name} ${run.encounters[r.id] ? '✓' : ''}</option>`)
+        .join('');
+
+      selectedModalPokemon = null;
+      document.getElementById('pokemon-search-input').value = '';
+      document.getElementById('pokemon-autocomplete-list').classList.add('hidden');
+      document.getElementById('selected-pokemon-preview').classList.add('hidden');
+      document.getElementById('dupes-warning').classList.add('hidden');
+      document.getElementById('modal-nickname').value = '';
+      document.getElementById('modal-level').value = 5;
+      document.getElementById('modal-notes').value = '';
+      document.getElementById('modal-status').value = getTeamMembers().length < 6 ? 'team' : 'box';
+
+      if (routeId) {
+        routeSelect.value = routeId;
+        document.getElementById('edit-route-id').value = routeId;
+      } else {
+        const firstOpen = run.routes.find(r => !run.encounters[r.id]);
+        if (firstOpen) routeSelect.value = firstOpen.id;
+        document.getElementById('edit-route-id').value = '';
+      }
+
+      const loadExistingForRoute = rId => {
+        const enc = run.encounters[rId];
+        if (enc) {
+          document.getElementById('modal-title').textContent = 'Begegnung bearbeiten';
+          document.getElementById('edit-route-id').value = rId;
+          deleteBtn.classList.remove('hidden');
+          if (enc.pokemon) {
+            selectedModalPokemon = enc.pokemon;
+            document.getElementById('pokemon-search-input').value = enc.pokemon.nameDe;
+            renderModalPokemonPreview(enc.pokemon);
+          }
+          document.getElementById('modal-nickname').value = enc.nickname || '';
+          document.getElementById('modal-level').value = enc.level || 5;
+          document.getElementById('modal-status').value = enc.status || 'box';
+          document.getElementById('modal-notes').value = enc.notes || '';
+        } else {
+          document.getElementById('modal-title').textContent = 'Neue Begegnung erfassen';
+          document.getElementById('edit-route-id').value = '';
+          deleteBtn.classList.add('hidden');
+        }
+      };
+
+      loadExistingForRoute(routeSelect.value);
+      routeSelect.onchange = () => loadExistingForRoute(routeSelect.value);
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeEncounterModal() {
+      document.getElementById('encounter-modal').classList.add('hidden');
+      document.getElementById('encounter-modal').classList.remove('flex');
+    }
+
+    async function saveEncounter(event) {
+      event.preventDefault();
+      const run = getActiveRun();
+      const routeId = document.getElementById('modal-route-select').value;
+      const status = document.getElementById('modal-status').value;
+      const nickname = document.getElementById('modal-nickname').value.trim();
+      const level = parseInt(document.getElementById('modal-level').value, 10) || 1;
+      const notes = document.getElementById('modal-notes').value.trim();
+      const rawSearch = document.getElementById('pokemon-search-input').value.trim();
+
+      if (!selectedModalPokemon && rawSearch && status !== 'missed') {
+        try {
+          selectedModalPokemon = await fetchPokemonFullData(rawSearch.toLowerCase());
+        } catch (e) {
+          showToast('Bitte wähle ein gültiges Pokémon aus der Liste aus.', 'error');
+          return;
+        }
+      }
+
+      if (!selectedModalPokemon && status !== 'missed') {
+        showToast('Bitte wähle ein Pokémon aus (oder setze den Status auf "Verpasst").', 'error');
+        return;
+      }
+
+      if (status === 'team') {
+        const teamCount = Object.entries(run.encounters).filter(([rId, enc]) => rId !== routeId && enc.status === 'team').length;
+        if (teamCount >= 6) {
+          showToast('Dein aktives Team ist bereits voll (max. 6)! Das Pokémon wird auf die Box gelegt.', 'warning');
+          document.getElementById('modal-status').value = 'box';
+        }
+      }
+
+      run.encounters[routeId] = {
+        routeId,
+        pokemon: selectedModalPokemon,
+        nickname,
+        level,
+        status: document.getElementById('modal-status').value,
+        notes,
+        updatedAt: Date.now()
+      };
+
+      saveStateToStorage();
+      closeEncounterModal();
+      renderAll();
+      showToast('Begegnung erfolgreich gespeichert!', 'success');
+    }
+
+    function deleteCurrentEncounter() {
+      const run = getActiveRun();
+      const routeId = document.getElementById('modal-route-select').value;
+      if (run.encounters[routeId]) {
+        delete run.encounters[routeId];
+        saveStateToStorage();
+        closeEncounterModal();
+        renderAll();
+        showToast('Begegnung gelöscht.', 'info');
+      }
+    }
+
+    function quickChangeStatus(routeId, newStatus) {
+      const run = getActiveRun();
+      const enc = run.encounters[routeId];
+      if (!enc) return;
+
+      if (newStatus === 'team' && getTeamMembers().length >= 6) {
+        showToast('Dein Team hat bereits 6 Pokémon! Lege zuerst eines auf die Box.', 'error');
+        return;
+      }
+
+      enc.status = newStatus;
+      saveStateToStorage();
+      renderAll();
+
+      const msgMap = {
+        team: `${enc.nickname || enc.pokemon?.nameDe} wurde ins Team aufgenommen!`,
+        box: `${enc.nickname || enc.pokemon?.nameDe} wurde auf die PC-Box gelegt.`,
+        dead: `Ruhe in Frieden, ${enc.nickname || enc.pokemon?.nameDe}...`
+      };
+      showToast(msgMap[newStatus] || 'Status aktualisiert', newStatus === 'dead' ? 'error' : 'info');
+    }
+
+    function changeLevel(routeId, delta) {
+      const enc = getActiveRun().encounters[routeId];
+      if (!enc) return;
+      enc.level = Math.max(1, Math.min(100, (enc.level || 1) + delta));
+      saveStateToStorage();
+      renderAll();
+    }
+
+    // =========================================================================
+    // 7. ENTWICKLUNGS-FUNKTION & TEAM-SLOT SCHNELLAUSWAHL
+    // =========================================================================
+
+    async function openEvolveModal(routeId) {
+      const enc = getActiveRun().encounters[routeId];
+      if (!enc || !enc.pokemon) return;
+
+      const modal = document.getElementById('evolve-modal');
+      const optionsContainer = document.getElementById('evolve-options');
+      optionsContainer.innerHTML = `<div class="py-6 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-accent text-xl mb-2"></i><div>Lade Entwicklungsreihe von PokeAPI...</div></div>`;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      try {
+        let pokeFull = enc.pokemon;
+        if (!pokeFull.evoChainUrl) {
+          pokeFull = await fetchPokemonFullData(pokeFull.slug || pokeFull.id);
+          enc.pokemon = pokeFull;
+        }
+
+        const chainNodes = await fetchEvolutionChain(pokeFull.evoChainUrl);
+        const currentNode = chainNodes.find(n => n.id === pokeFull.id || n.slug === pokeFull.speciesSlug);
+
+        if (!currentNode || currentNode.evolvesTo.length === 0) {
+          optionsContainer.innerHTML = `<div class="p-4 rounded-xl bg-slate-950 border border-slate-800 text-center text-sm text-slate-300"><strong>${pokeFull.nameDe}</strong> hat keine weiteren Entwicklungen in der PokeAPI!</div>`;
+          return;
+        }
+
+        const regSuffix = ['-alola', '-galar', '-hisui', '-paldea'].find(s => pokeFull.slug.includes(s)) || '';
+        const targets = await Promise.all(
+          currentNode.evolvesTo.map(async target => {
+            try { return await fetchPokemonFullData(`${target.slug}${regSuffix}`); }
+            catch { return await fetchPokemonFullData(target.slug); }
+          })
+        );
+
+        optionsContainer.innerHTML = targets
+          .map(t => `
+            <button type="button" onclick="executeEvolution('${routeId}', '${t.slug}')" class="w-full p-3 rounded-xl bg-slate-950 hover:bg-accent/20 border border-slate-800 hover:border-accent flex items-center justify-between transition group">
+              <div class="flex items-center gap-3">
+                <img src="${t.sprite}" class="w-12 h-12 object-contain" alt="${t.nameDe}" />
+                <div class="text-left">
+                  <div class="font-bold text-white group-hover:text-accent transition">${t.nameDe}</div>
+                  <div class="flex gap-1 mt-1">${t.types.map(tp => renderTypeBadge(tp, true)).join('')}</div>
+                </div>
+              </div>
+              <span class="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-bold">Entwickeln <i class="fa-solid fa-arrow-right ml-1"></i></span>
+            </button>
+          `)
+          .join('');
+      } catch (err) {
+        optionsContainer.innerHTML = `<p class="text-rose-400 text-sm">Fehler beim Laden der Entwicklung.</p>`;
+      }
+    }
+
+    async function executeEvolution(routeId, targetSlug) {
+      const enc = getActiveRun().encounters[routeId];
+      if (!enc) return;
+      try {
+        const oldName = enc.pokemon.nameDe;
+        const newPoke = await fetchPokemonFullData(targetSlug);
+        enc.pokemon = newPoke;
+        saveStateToStorage();
+        closeEvolveModal();
+        renderAll();
+        showToast(`Glückwunsch! ${enc.nickname || oldName} hat sich zu ${newPoke.nameDe} entwickelt!`, 'success');
+      } catch (e) {
+        showToast('Entwicklung fehlgeschlagen.', 'error');
+      }
+    }
+
+    function closeEvolveModal() {
+      document.getElementById('evolve-modal').classList.add('hidden');
+      document.getElementById('evolve-modal').classList.remove('flex');
+    }
+
+    function openTeamPickerModal() {
+      document.getElementById('team-picker-search').value = '';
+      renderTeamPickerList();
+      document.getElementById('team-picker-modal').classList.remove('hidden');
+      document.getElementById('team-picker-modal').classList.add('flex');
+    }
+
+    function closeTeamPickerModal() {
+      document.getElementById('team-picker-modal').classList.add('hidden');
+      document.getElementById('team-picker-modal').classList.remove('flex');
+    }
+
+    function renderTeamPickerList() {
+      const run = getActiveRun();
+      const listEl = document.getElementById('team-picker-list');
+      const query = (document.getElementById('team-picker-search')?.value || '').trim().toLowerCase();
+      const boxPokemon = Object.values(run.encounters).filter(e => e.status === 'box' && e.pokemon);
+
+      const filtered = boxPokemon.filter(enc => {
+        if (!query) return true;
+        const route = run.routes.find(r => r.id === enc.routeId);
+        return (
+          enc.pokemon.nameDe.toLowerCase().includes(query) ||
+          enc.pokemon.nameEn.toLowerCase().includes(query) ||
+          (enc.nickname && enc.nickname.toLowerCase().includes(query)) ||
+          (route && route.name.toLowerCase().includes(query))
+        );
+      });
+
+      if (boxPokemon.length === 0) {
+        listEl.innerHTML = `<div class="p-6 rounded-xl bg-slate-950 border border-slate-800 text-center space-y-2"><i class="fa-solid fa-box-open text-2xl text-slate-600"></i><p class="text-sm font-semibold text-slate-300">Deine PC-Box ist aktuell leer</p><p class="text-xs text-slate-400">Klicke unten auf <strong>„Neue Begegnung erfassen“</strong>, um einen neuen Fang einzutragen.</p></div>`;
+        return;
+      }
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="p-5 rounded-xl bg-slate-950 border border-slate-800 text-center text-xs text-slate-400">Kein gefangenes Pokémon für „${escapeHtml(query)}“ gefunden.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = filtered
+        .map(enc => {
+          const p = enc.pokemon;
+          const route = run.routes.find(r => r.id === enc.routeId);
+          return `
+            <button type="button" onclick="selectBoxPokemonForTeam('${enc.routeId}')" class="w-full p-3 rounded-xl bg-slate-950 hover:bg-accent/15 border border-slate-800 hover:border-accent flex items-center justify-between gap-3 transition group text-left">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0">
+                  <img src="${p.sprite}" alt="${p.nameDe}" class="w-10 h-10 object-contain group-hover:scale-105 transition" />
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-sm text-white group-hover:text-accent transition truncate">${escapeHtml(enc.nickname || p.nameDe)}</span>
+                    <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 shrink-0">Lv. ${enc.level}</span>
+                  </div>
+                  <div class="text-xs text-slate-400 truncate">${enc.nickname ? `${p.nameDe} • ` : ''}${escapeHtml(route ? route.name : enc.routeId)}</div>
+                  <div class="flex gap-1 mt-1">${p.types.map(tp => renderTypeBadge(tp, true)).join('')}</div>
+                </div>
+              </div>
+              <span class="px-3 py-1.5 rounded-lg bg-slate-800 group-hover:bg-accent text-slate-200 group-hover:text-white text-xs font-bold shrink-0 transition">Wählen <i class="fa-solid fa-plus ml-1"></i></span>
+            </button>
+          `;
+        })
+        .join('');
+    }
+
+    function selectBoxPokemonForTeam(routeId) {
+      closeTeamPickerModal();
+      quickChangeStatus(routeId, 'team');
+    }
+
+    // =========================================================================
+    // 8. ROUTEN, ORDEN / PRÜFUNGEN & TYPEN-ANALYSE
+    // =========================================================================
+
+    function addCustomRoute() {
+      const input = document.getElementById('custom-route-input');
+      const name = input.value.trim();
+      if (!name) return;
+      getActiveRun().routes.push({ id: 'custom-' + Date.now(), name, category: 'Eigener Ort' });
+      input.value = '';
+      saveStateToStorage();
+      renderRoutes();
+      showToast(`Ort "${name}" hinzugefügt!`, 'success');
+    }
+
+    function toggleGymBadge(gymId) {
+      const run = getActiveRun();
+      const ed = getEditionConfig(run.editionId);
+      const idx = run.defeatedGyms.indexOf(gymId);
+      if (idx === -1) {
+        run.defeatedGyms.push(gymId);
+        const gym = ed.gyms.find(g => g.id === gymId);
+        if (gym) showToast(`${gym.badge} erhalten! (${gym.name} besiegt)`, 'success');
+      } else {
+        run.defeatedGyms.splice(idx, 1);
+      }
+      saveStateToStorage();
+      renderAll();
+    }
+
+    function getCurrentLevelCapInfo() {
+      const run = getActiveRun();
+      const ed = getEditionConfig(run.editionId);
+      const nextGym = ed.gyms.find(g => !run.defeatedGyms.includes(g.id));
+      if (!nextGym) return { cap: 100, leader: 'Alle besiegt!', typeDe: 'Champ' };
+      const tInfo = TYPE_INFO[nextGym.type];
+      return { cap: nextGym.cap, leader: nextGym.name, typeDe: tInfo ? tInfo.de : nextGym.type };
+    }
+
+    function getTeamMembers() {
+      return Object.values(getActiveRun().encounters).filter(e => e.status === 'team' && e.pokemon);
+    }
+
+    function calculateTeamTypeCoverage(team) {
+      return Object.keys(TYPE_INFO).map(atkType => {
+        let weakCount = 0;
+        let resistCount = 0;
+        team.forEach(member => {
+          let mult = 1;
+          member.pokemon.types.forEach(defType => {
+            const eff = TYPE_CHART[atkType]?.[defType];
+            if (eff !== undefined) mult *= eff;
+          });
+          if (mult > 1) weakCount++;
+          if (mult < 1) resistCount++;
+        });
+        return { type: atkType, weakCount, resistCount };
+      });
+    }
+
+    // =========================================================================
+    // 9. RENDER-FUNKTIONEN
+    // =========================================================================
+
+    function renderAll() {
+      updateHeaderStats();
+      renderTeamTab();
+      renderRoutes();
+      renderBoxAndGraveyard();
+      renderGyms();
+    }
+
+    function updateHeaderStats() {
+      const run = getActiveRun();
+      const ed = getEditionConfig(run.editionId);
+      const all = Object.values(run.encounters);
+      const teamCount = all.filter(e => e.status === 'team').length;
+      const boxCount = all.filter(e => e.status === 'box').length;
+      const deadCount = all.filter(e => e.status === 'dead').length;
+
+      document.getElementById('header-run-name').textContent = run.name;
+      document.getElementById('stat-caught').textContent = teamCount + boxCount;
+      document.getElementById('stat-dead').textContent = deadCount;
+      document.getElementById('stat-badges').textContent = `${run.defeatedGyms.length}/${ed.gyms.length}`;
+
+      document.getElementById('badge-team-count').textContent = `${teamCount}/6`;
+      document.getElementById('badge-routes-count').textContent = `${all.length}/${run.routes.length}`;
+      document.getElementById('badge-box-count').textContent = `${boxCount + deadCount}`;
+
+      const capInfo = getCurrentLevelCapInfo();
+      document.getElementById('header-level-cap').textContent = `Lv. ${capInfo.cap}`;
+      document.getElementById('header-next-leader').textContent = ` (${capInfo.leader})`;
+      document.getElementById('gym-tab-cap').textContent = `Lv. ${capInfo.cap}`;
+      document.getElementById('gym-tab-leader').textContent = `${capInfo.leader} (${capInfo.typeDe})`;
+    }
+
+    function renderTeamTab() {
+      const run = getActiveRun();
+      const team = getTeamMembers();
+      const grid = document.getElementById('team-grid');
+      const capInfo = getCurrentLevelCapInfo();
+
+      let cardsHtml = team.map(enc => {
+        const p = enc.pokemon;
+        const route = run.routes.find(r => r.id === enc.routeId);
+        const isOverCap = enc.level > capInfo.cap;
+
+        return `
+          <div class="bg-slate-900 border ${isOverCap ? 'border-amber-500/70' : 'border-slate-800'} rounded-2xl p-5 flex flex-col justify-between shadow-lg hover:border-accent/60 transition relative group">
+            <div>
+              <div class="flex items-center justify-between gap-2 text-xs mb-3">
+                <span class="text-slate-400 truncate"><i class="fa-solid fa-location-dot text-accent mr-1"></i> ${escapeHtml(route ? route.name : enc.routeId)}</span>
+                ${isOverCap ? `<span class="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 shrink-0"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Über Cap</span>` : ''}
+              </div>
+
+              <div class="flex items-center gap-4">
+                <div class="w-20 h-20 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0">
+                  <img src="${p.sprite}" alt="${p.nameDe}" class="w-16 h-16 object-contain drop-shadow-md group-hover:scale-105 transition" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-lg font-extrabold text-white truncate">${escapeHtml(enc.nickname || p.nameDe)}</h3>
+                  ${enc.nickname ? `<div class="text-xs text-slate-400 font-medium">${p.nameDe}</div>` : ''}
+                  <div class="flex flex-wrap gap-1.5 mt-2">${p.types.map(t => renderTypeBadge(t)).join('')}</div>
+                </div>
+              </div>
+
+              <div class="mt-4 bg-slate-950/90 border border-slate-800/90 rounded-xl px-3 py-2 flex items-center justify-between">
+                <span class="text-xs text-slate-400 font-semibold">Level</span>
+                <div class="flex items-center gap-2">
+                  <button onclick="changeLevel('${enc.routeId}', -1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center transition">-</button>
+                  <span class="text-sm font-extrabold text-white w-10 text-center">Lv. ${enc.level}</span>
+                  <button onclick="changeLevel('${enc.routeId}', 1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-accent text-white text-xs font-bold flex items-center justify-center transition">+</button>
+                </div>
+              </div>
+
+              ${enc.notes ? `<p class="mt-3 text-xs text-slate-400 bg-slate-950/50 rounded-lg px-3 py-2 border border-slate-800/60 italic">"${escapeHtml(enc.notes)}"</p>` : ''}
+            </div>
+
+            <div class="grid grid-cols-4 gap-1.5 mt-4 pt-3 border-t border-slate-800/80">
+              <button onclick="openEvolveModal('${enc.routeId}')" title="Entwickeln (PokeAPI)" class="py-2 px-2 rounded-xl bg-indigo-950/70 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-800/50 text-xs font-semibold transition flex items-center justify-center gap-1">
+                <i class="fa-solid fa-dna"></i> <span class="hidden sm:inline">Evo</span>
+              </button>
+              <button onclick="quickChangeStatus('${enc.routeId}', 'box')" title="Auf PC-Box legen" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-sky-600 text-slate-300 hover:text-white text-xs font-semibold transition flex items-center justify-center gap-1">
+                <i class="fa-solid fa-box-archive"></i> <span class="hidden sm:inline">Box</span>
+              </button>
+              <button onclick="quickChangeStatus('${enc.routeId}', 'dead')" title="Als Besiegt markieren" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white text-xs font-semibold transition flex items-center justify-center gap-1">
+                <i class="fa-solid fa-skull"></i> <span class="hidden sm:inline">K.O.</span>
+              </button>
+              <button onclick="openEncounterModal('${enc.routeId}')" title="Bearbeiten" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition flex items-center justify-center">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      for (let i = team.length; i < 6; i++) {
+        cardsHtml += `
+          <button onclick="openTeamPickerModal()" class="min-h-[220px] rounded-2xl border-2 border-dashed border-slate-800 hover:border-accent/60 bg-slate-900/30 hover:bg-slate-900/70 flex flex-col items-center justify-center gap-2 text-slate-500 hover:text-accent transition p-6 group">
+            <div class="w-12 h-12 rounded-2xl bg-slate-900 group-hover:bg-accent-soft flex items-center justify-center transition">
+              <i class="fa-solid fa-plus text-lg"></i>
+            </div>
+            <span class="text-sm font-semibold">Team-Slot ${i + 1} frei</span>
+            <span class="text-xs text-slate-600">Klicken, um gefangenes Pokémon auszuwählen</span>
+          </button>
+        `;
+      }
+
+      grid.innerHTML = cardsHtml;
+
+      const coverage = calculateTeamTypeCoverage(team);
+      document.getElementById('type-coverage-grid').innerHTML = coverage
+        .map(item => {
+          const info = TYPE_INFO[item.type];
+          const netDanger = item.weakCount >= 3 && item.resistCount === 0;
+          return `
+            <div class="rounded-xl p-2.5 bg-slate-950 border ${netDanger ? 'border-rose-500/70' : 'border-slate-800'} flex flex-col items-center text-center">
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-bold ${info.bg} ${info.text} w-full mb-2">${info.de}</span>
+              <div class="flex items-center justify-around w-full text-xs font-bold">
+                <span class="${item.weakCount > 0 ? 'text-rose-400' : 'text-slate-600'}">-${item.weakCount}</span>
+                <span class="text-slate-700">|</span>
+                <span class="${item.resistCount > 0 ? 'text-emerald-400' : 'text-slate-600'}">+${item.resistCount}</span>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function renderRoutes() {
+      const run = getActiveRun();
+      const search = document.getElementById('route-search').value.trim().toLowerCase();
+      const filter = document.getElementById('route-filter').value;
+      const container = document.getElementById('routes-list');
+
+      const filteredRoutes = run.routes.filter(route => {
+        const enc = run.encounters[route.id];
+        if (filter === 'open' && enc) return false;
+        if (filter === 'caught' && (!enc || (enc.status !== 'team' && enc.status !== 'box'))) return false;
+        if (filter === 'team' && (!enc || enc.status !== 'team')) return false;
+        if (filter === 'box' && (!enc || enc.status !== 'box')) return false;
+        if (filter === 'dead' && (!enc || enc.status !== 'dead')) return false;
+        if (filter === 'missed' && (!enc || enc.status !== 'missed')) return false;
+
+        if (search) {
+          const matchRoute = route.name.toLowerCase().includes(search) || route.category.toLowerCase().includes(search);
+          const matchPoke = enc?.pokemon && (enc.pokemon.nameDe.toLowerCase().includes(search) || enc.pokemon.nameEn.toLowerCase().includes(search));
+          const matchNick = enc?.nickname && enc.nickname.toLowerCase().includes(search);
+          return matchRoute || matchPoke || matchNick;
+        }
+        return true;
+      });
+
+      if (filteredRoutes.length === 0) {
+        container.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-400">Keine Routen oder Begegnungen für diesen Filter gefunden.</div>`;
+        return;
+      }
+
+      const statusBadges = {
+        team: '<span class="px-2.5 py-1 rounded-lg bg-accent-soft text-accent border border-accent/30 text-xs font-bold">Im Team</span>',
+        box: '<span class="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-bold">Auf der Box</span>',
+        dead: '<span class="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold">Besiegt (K.O.)</span>',
+        missed: '<span class="px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-400 border border-slate-600/40 text-xs font-bold">Verpasst / Geflohen</span>'
+      };
+
+      container.innerHTML = filteredRoutes
+        .map(route => {
+          const enc = run.encounters[route.id];
+          if (!enc) {
+            return `
+              <div class="bg-slate-900/70 hover:bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition">
+                <div class="flex items-center gap-3">
+                  <span class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 text-[11px] font-bold uppercase tracking-wider shrink-0">${escapeHtml(route.category)}</span>
+                  <span class="font-semibold text-white text-sm sm:text-base">${escapeHtml(route.name)}</span>
+                </div>
+                <button onclick="openEncounterModal('${route.id}')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-accent text-slate-200 hover:text-white text-xs font-semibold transition flex items-center justify-center gap-1.5 shrink-0">
+                  <i class="fa-solid fa-plus"></i> Begegnung eintragen
+                </button>
+              </div>
+            `;
+          }
+
+          const p = enc.pokemon;
+          return `
+            <div class="bg-slate-900 border ${enc.status === 'dead' ? 'border-rose-900/50 opacity-85' : 'border-slate-800'} rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition hover:border-slate-700">
+              <div class="flex items-center gap-3.5">
+                ${p ? `<div class="w-14 h-14 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0"><img src="${p.sprite}" alt="${p.nameDe}" class="w-12 h-12 object-contain ${enc.status === 'dead' ? 'grayscale' : ''}" /></div>`
+                    : `<div class="w-14 h-14 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0 text-slate-600"><i class="fa-solid fa-ban text-xl"></i></div>`}
+                <div>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-400">${escapeHtml(route.name)}</span>
+                    ${statusBadges[enc.status] || ''}
+                  </div>
+                  <div class="flex flex-wrap items-center gap-2 mt-1">
+                    <h4 class="font-bold text-white text-base">${p ? escapeHtml(enc.nickname || p.nameDe) : 'Keine Begegnung gefangen'}</h4>
+                    ${p && enc.nickname ? `<span class="text-xs text-slate-400">(${p.nameDe})</span>` : ''}
+                    ${p ? `<span class="text-xs font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md">Lv. ${enc.level}</span>` : ''}
+                  </div>
+                  ${p ? `<div class="flex gap-1 mt-1.5">${p.types.map(t => renderTypeBadge(t, true)).join('')}</div>` : ''}
+                  ${enc.notes ? `<p class="text-xs text-slate-400 mt-1 italic">${escapeHtml(enc.notes)}</p>` : ''}
+                </div>
+              </div>
+              <div class="flex items-center gap-2 self-end md:self-center shrink-0">
+                ${p && enc.status === 'box' ? `<button onclick="quickChangeStatus('${route.id}', 'team')" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-accent text-slate-200 hover:text-white text-xs font-semibold transition">Ins Team</button>` : ''}
+                <button onclick="openEncounterModal('${route.id}')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5"><i class="fa-solid fa-pen"></i> Bearbeiten</button>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function renderBoxAndGraveyard() {
+      const run = getActiveRun();
+      const boxList = Object.values(run.encounters).filter(e => e.status === 'box' && e.pokemon);
+      const deadList = Object.values(run.encounters).filter(e => e.status === 'dead' && e.pokemon);
+
+      document.getElementById('box-section-count').textContent = boxList.length;
+      document.getElementById('graveyard-section-count').textContent = deadList.length;
+
+      const boxGrid = document.getElementById('box-grid');
+      boxGrid.innerHTML = boxList.length === 0
+        ? `<div class="col-span-full bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center text-sm text-slate-400">Aktuell befinden sich keine Pokémon auf der PC-Box.</div>`
+        : boxList.map(enc => {
+            const p = enc.pokemon;
+            const route = run.routes.find(r => r.id === enc.routeId);
+            return `
+              <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between">
+                <div class="flex items-center gap-3">
+                  <img src="${p.sprite}" alt="${p.nameDe}" class="w-16 h-16 object-contain bg-slate-950 rounded-xl p-1 border border-slate-800" />
+                  <div class="min-w-0">
+                    <h4 class="font-bold text-white truncate">${escapeHtml(enc.nickname || p.nameDe)}</h4>
+                    <div class="text-xs text-slate-400">${p.nameDe} • Lv. ${enc.level}</div>
+                    <div class="flex gap-1 mt-1.5">${p.types.map(t => renderTypeBadge(t, true)).join('')}</div>
+                  </div>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-3 truncate"><i class="fa-solid fa-location-dot mr-1"></i> ${escapeHtml(route ? route.name : enc.routeId)}</div>
+                <div class="flex gap-2 mt-3 pt-3 border-t border-slate-800">
+                  <button onclick="quickChangeStatus('${enc.routeId}', 'team')" class="flex-1 py-1.5 rounded-xl bg-accent-soft hover:bg-accent text-accent hover:text-white border border-accent/30 text-xs font-semibold transition">Ins Team</button>
+                  <button onclick="openEncounterModal('${enc.routeId}')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"><i class="fa-solid fa-pen"></i></button>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+      const graveGrid = document.getElementById('graveyard-grid');
+      graveGrid.innerHTML = deadList.length === 0
+        ? `<div class="col-span-full bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center text-sm text-slate-400">Noch keine Verluste – möge es so bleiben!</div>`
+        : deadList.map(enc => {
+            const p = enc.pokemon;
+            const route = run.routes.find(r => r.id === enc.routeId);
+            return `
+              <div class="bg-slate-900/80 border border-rose-950/70 rounded-2xl p-4 flex flex-col justify-between">
+                <div class="flex items-center gap-3">
+                  <img src="${p.sprite}" alt="${p.nameDe}" class="w-16 h-16 object-contain grayscale bg-slate-950 rounded-xl p-1 border border-slate-800" />
+                  <div class="min-w-0">
+                    <h4 class="font-bold text-slate-200 truncate">${escapeHtml(enc.nickname || p.nameDe)}</h4>
+                    <div class="text-xs text-slate-400">${p.nameDe} • Gefallen auf Lv. ${enc.level}</div>
+                    <div class="text-[11px] text-slate-500 mt-1 truncate">Gefangen: ${escapeHtml(route ? route.name : enc.routeId)}</div>
+                  </div>
+                </div>
+                ${enc.notes ? `<div class="mt-3 text-xs text-rose-300/90 bg-rose-950/30 border border-rose-900/40 rounded-lg px-2.5 py-1.5 italic">"${escapeHtml(enc.notes)}"</div>` : ''}
+                <div class="flex justify-end mt-3 pt-2 border-t border-slate-800/80">
+                  <button onclick="openEncounterModal('${enc.routeId}')" class="text-xs text-slate-400 hover:text-white transition"><i class="fa-solid fa-pen mr-1"></i> Bearbeiten</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+    }
+
+    function renderGyms() {
+      const run = getActiveRun();
+      const ed = getEditionConfig(run.editionId);
+      const grid = document.getElementById('gyms-grid');
+
+      grid.innerHTML = ed.gyms
+        .map(gym => {
+          const isDefeated = run.defeatedGyms.includes(gym.id);
+          const typeStyle = TYPE_INFO[gym.type] || TYPE_INFO.normal;
+
+          return `
+            <div onclick="toggleGymBadge('${gym.id}')" class="cursor-pointer rounded-2xl p-5 border transition relative select-none ${
+              isDefeated ? 'bg-slate-900/95 border-emerald-500/60 shadow-lg shadow-emerald-950/30' : 'bg-slate-900 border-slate-800 hover:border-accent/60'
+            }">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <div class="w-12 h-12 rounded-2xl ${typeStyle.bg} ${typeStyle.text} flex items-center justify-center text-lg shadow-md shrink-0">
+                    <i class="fa-solid ${gym.icon}"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Etappe ${gym.order}</span>
+                      ${gym.exclusive ? `<span class="px-2 py-0.5 rounded-md bg-accent-soft text-accent text-[10px] font-bold border border-accent/30">Exklusiv</span>` : ''}
+                    </div>
+                    <h3 class="text-lg font-extrabold text-white mt-0.5">${gym.name}</h3>
+                    <div class="text-xs text-slate-400">${gym.city} • ${gym.badge}</div>
+                  </div>
+                </div>
+                <div class="w-7 h-7 rounded-full flex items-center justify-center border ${
+                  isDefeated ? 'bg-emerald-500 border-emerald-400 text-slate-950' : 'bg-slate-950 border-slate-700 text-transparent'
+                } transition">
+                  <i class="fa-solid fa-check text-xs"></i>
+                </div>
+              </div>
+              <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                <span class="text-slate-400">Signatur: <strong class="text-slate-200">${gym.ace}</strong></span>
+                <span class="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 font-bold text-accent">Cap: Lv. ${gym.cap}</span>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    // =========================================================================
+    // 10. NAVIGATION, EXPORT / IMPORT, RESET & UI HELPER
+    // =========================================================================
+
+    function switchTab(tabName) {
+      ['team', 'routes', 'box', 'gyms'].forEach(t => {
+        const sec = document.getElementById(`tab-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tabName) {
+          sec.classList.remove('hidden');
+          btn.classList.remove('text-slate-300', 'hover:bg-slate-800');
+          btn.classList.add('bg-accent', 'text-white', 'shadow-md');
+        } else {
+          sec.classList.add('hidden');
+          btn.classList.add('text-slate-300', 'hover:bg-slate-800');
+          btn.classList.remove('bg-accent', 'text-white', 'shadow-md');
+        }
+      });
+    }
+
+    function renderTypeBadge(typeKey, small = false) {
+      const info = TYPE_INFO[typeKey] || { de: capitalize(typeKey), bg: 'bg-slate-600', text: 'text-white' };
+      const sizeClasses = small ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-0.5 text-xs';
+      return `<span class="inline-flex items-center rounded-md font-bold tracking-wide ${sizeClasses} ${info.bg} ${info.text}">${info.de}</span>`;
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(rootState, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pokemon-nuzlocke-alle-runs-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Alle Runs als JSON heruntergeladen!', 'success');
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed.runs && parsed.activeRunId) {
+            rootState = parsed;
+          } else if (parsed.encounters && parsed.routes) {
+            // Einzel-Run Backup aus alter Schild-Version importieren
+            const id = 'imported-' + Date.now();
+            rootState.runs[id] = createRunObject(id, 'Importierter Schild-Run', 'shield', parsed.routes, parsed.encounters, parsed.defeatedGyms || []);
+            rootState.activeRunId = id;
+          } else {
+            throw new Error('Ungültiges Format');
+          }
+          saveStateToStorage();
+          applyEditionTheme(getEditionConfig(getActiveRun().editionId));
+          renderAll();
+          showToast('Backup erfolgreich importiert!', 'success');
+        } catch (err) {
+          showToast('Fehler beim Importieren der JSON-Datei.', 'error');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function confirmResetRun() {
+      const run = getActiveRun();
+      const ed = getEditionConfig(run.editionId);
+      showConfirmDialog(
+        `"${run.name}" zurücksetzen?`,
+        'Möchtest du wirklich alle gefangenen Pokémon, Notizen und Orden dieses Runs zurücksetzen?',
+        () => {
+          rootState.runs[run.id] = createRunObject(run.id, run.name, run.editionId);
+          saveStateToStorage();
+          renderAll();
+          showToast(`Run in ${ed.region} wurde zurückgesetzt!`, 'info');
+        }
+      );
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-emerald-950/95 border-emerald-600 text-emerald-100',
+        error: 'bg-rose-950/95 border-rose-600 text-rose-100',
+        warning: 'bg-amber-950/95 border-amber-600 text-amber-100',
+        info: 'bg-slate-900/95 border-slate-700 text-slate-100'
+      };
+      const icons = {
+        success: 'fa-circle-check text-emerald-400',
+        error: 'fa-circle-exclamation text-rose-400',
+        warning: 'fa-triangle-exclamation text-amber-400',
+        info: 'fa-circle-info text-accent'
+      };
+      toast.className = `pointer-events-auto border rounded-xl px-4 py-3 shadow-2xl backdrop-blur-md flex items-center gap-3 text-xs sm:text-sm font-medium transition-all duration-300 ${colors[type] || colors.info}`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} text-base shrink-0"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3600);
+    }
+
+    function showConfirmDialog(title, message, onConfirm) {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-message').textContent = message;
+      const cleanup = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); };
+      document.getElementById('confirm-ok').onclick = () => { cleanup(); onConfirm(); };
+      document.getElementById('confirm-cancel').onclick = cleanup;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function capitalize(str) { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
+    function escapeHtml(str) {
+      return str ? String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : '';
+    }
+
+    document.addEventListener('click', e => {
+      const searchInput = document.getElementById('pokemon-search-input');
+      const dropdown = document.getElementById('pokemon-autocomplete-list');
+      if (searchInput && dropdown && !searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
